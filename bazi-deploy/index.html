@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>八字排盘</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="control-panel">
+          <div class="brand-mark">
+            <div class="seal">命</div>
+            <div>
+              <h1>八字排盘</h1>
+              <p>四柱 · 大运 · 流月 · 神煞 · 案例</p>
+            </div>
+          </div>
+
+          <form id="bazi-form">
+            <label>
+              <span>姓名或备注</span>
+              <input name="personName" type="text" placeholder="可选" />
+            </label>
+
+            <label>
+              <span>性别</span>
+              <select name="gender">
+                <option value="unknown" selected>暂不填写</option>
+                <option value="male">男</option>
+                <option value="female">女</option>
+              </select>
+            </label>
+
+            <label>
+              <span>出生日期与时间</span>
+              <input id="birth-datetime" name="birthDatetime" type="datetime-local" required />
+            </label>
+
+            <label>
+              <span>时区</span>
+              <select name="timezone">
+                <option value="480" selected>中国标准时间 UTC+08:00</option>
+                <option value="540">日本/韩国 UTC+09:00</option>
+                <option value="0">UTC+00:00</option>
+                <option value="-300">美东 UTC-05:00</option>
+                <option value="-360">美中 UTC-06:00</option>
+                <option value="-420">美山 UTC-07:00</option>
+                <option value="-480">美西 UTC-08:00</option>
+              </select>
+            </label>
+
+            <label class="switch-row">
+              <input name="ziHour" type="checkbox" checked />
+              <span>按 23 点子时换日</span>
+            </label>
+
+            <div class="button-row">
+              <button type="submit">排盘</button>
+              <button id="fill-now" type="button" class="secondary">填入当前时间</button>
+            </div>
+          </form>
+
+          <button id="copy-button" class="secondary" type="button" disabled>复制排盘数据</button>
+          <label>
+            <span>案例备注</span>
+            <textarea id="case-note" rows="3" placeholder="可记录来访背景、验证点、断语摘要"></textarea>
+          </label>
+          <button id="save-case-button" class="secondary" type="button" disabled>保存案例</button>
+          <section class="case-panel">
+            <div class="case-heading">
+              <h2>案例记录</h2>
+              <span id="case-count">0</span>
+            </div>
+            <div id="case-list" class="case-list"></div>
+          </section>
+          <div id="error-view" class="error" hidden></div>
+        </aside>
+
+        <section class="result-panel">
+          <div class="cosmic-plate" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div id="chart-view" class="empty-state">
+            <h2>输入出生信息后开始排盘</h2>
+            <p>排盘会展示四柱、大运、该大运流月、神煞、藏干、十神和五行分布。</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
