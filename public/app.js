@@ -725,6 +725,11 @@ function renderChart(chart) {
   saveCaseButton.disabled = false;
 }
 
+function focusChartOnSmallScreen() {
+  if (!window.matchMedia("(max-width: 900px)").matches) return;
+  document.querySelector(".result-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function showError(message) {
   errorView.textContent = message;
   errorView.hidden = false;
@@ -751,6 +756,7 @@ form.addEventListener("submit", (event) => {
     aiState = "idle";
     aiMessages = [];
     renderChart(currentChart);
+    focusChartOnSmallScreen();
   } catch (error) {
     showError(error.message || "排盘失败，请检查输入。");
   }
@@ -865,6 +871,7 @@ caseList.addEventListener("click", (event) => {
     aiState = "idle";
     aiMessages = [];
     renderChart(currentChart);
+    focusChartOnSmallScreen();
     clearError();
   }
 });

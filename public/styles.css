@@ -61,6 +61,7 @@ textarea {
 
 .control-panel,
 .result-panel {
+  min-width: 0;
   border: 1px solid rgba(115, 92, 71, 0.22);
   background: var(--panel);
   box-shadow: 0 20px 60px rgba(69, 48, 30, 0.13);
@@ -541,6 +542,7 @@ button:disabled {
   display: grid;
   gap: 10px;
   margin-top: 8px;
+  overflow: hidden;
   border: 1px solid rgba(115, 92, 71, 0.2);
   border-radius: 8px;
   background: rgba(255, 253, 249, 0.76);
@@ -562,11 +564,13 @@ button:disabled {
   grid-template-columns: 34px 1fr;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .flow-choice-row > div {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .flow-choice-row:first-child > div {
@@ -878,40 +882,89 @@ blockquote {
 }
 
 @media (max-width: 900px) {
+  html,
   body {
     overflow: auto;
+    overflow-x: hidden;
   }
 
   .app-shell {
     height: auto;
     min-height: 100vh;
     overflow: visible;
-    padding: 12px;
+    padding: 10px;
   }
 
   .workspace {
     grid-template-columns: 1fr;
+    gap: 10px;
+    max-width: 100%;
     height: auto;
     min-height: auto;
+    overflow: hidden;
   }
 
   .control-panel {
     height: auto;
     min-height: auto;
     overflow: visible;
+    gap: 14px;
+    padding: 14px;
   }
 
   .result-panel {
     height: auto;
     min-height: 70vh;
-    overflow: hidden;
+    overflow: visible;
+    padding: 14px;
   }
 
   .summary-band,
   .lower-grid,
-  .flow-picker,
   .relations-panel {
     grid-template-columns: 1fr;
+  }
+
+  .summary-band {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .summary-band > div {
+    min-height: auto;
+    padding: 11px 12px;
+  }
+
+  .summary-band strong {
+    font-size: 23px;
+  }
+
+  .pillar-table-panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pillar-table {
+    min-width: 680px;
+  }
+
+  .pillar-table th,
+  .pillar-table td {
+    padding: 7px 8px;
+  }
+
+  .pillar-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    width: 44px;
+    background: rgba(255, 253, 249, 0.96);
+  }
+
+  .flow-picker {
+    gap: 8px;
+    margin-top: 10px;
+    padding: 9px;
   }
 
   .flow-choice-row,
@@ -921,15 +974,165 @@ blockquote {
     grid-template-columns: 1fr;
   }
 
+  .flow-choice-row {
+    gap: 5px;
+  }
+
+  .flow-choice-row > span {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .flow-choice-row > div {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .flow-choice {
+    flex: 0 0 78px;
+    min-height: 64px;
+    padding: 5px 4px;
+    scroll-snap-align: start;
+  }
+
+  .flow-pillar {
+    min-height: 48px;
+  }
+
+  .flow-pillar b {
+    font-size: 19px;
+  }
+
+  .relations-panel {
+    gap: 8px;
+  }
+
+  .ai-message {
+    max-width: 100%;
+  }
+
+  .ai-chat-log {
+    max-height: none;
+  }
+
+  .cosmic-plate {
+    width: 360px;
+    top: -160px;
+    right: -190px;
+  }
+
 }
 
 @media (max-width: 520px) {
+  .app-shell {
+    padding: 8px;
+  }
+
   .control-panel,
   .result-panel {
-    padding: 18px;
+    border-radius: 7px;
+    padding: 12px;
+  }
+
+  .brand-mark {
+    gap: 10px;
+  }
+
+  .seal {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    font-size: 24px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .brand-mark p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  form {
+    gap: 12px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    min-height: 42px;
+  }
+
+  .lunar-fields {
+    grid-template-columns: 1fr;
   }
 
   .button-row {
+    grid-template-columns: 1fr;
+  }
+
+  .case-card {
+    grid-template-columns: 1fr;
+  }
+
+  .case-delete {
+    min-height: 38px;
+    text-align: center !important;
+  }
+
+  .summary-band > div {
+    padding: 10px;
+  }
+
+  .summary-band strong {
+    font-size: 21px;
+  }
+
+  .pillar-table {
+    min-width: 620px;
+  }
+
+  .pillar-table td strong {
+    font-size: 27px;
+  }
+
+  .hidden-cell {
+    min-width: 78px;
+  }
+
+  .shensha-list {
+    gap: 4px;
+  }
+
+  .shensha-list span {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .flow-choice {
+    flex-basis: 72px;
+  }
+
+  .panel {
+    padding: 13px;
+  }
+
+  .panel h2 {
+    margin-bottom: 10px;
+    font-size: 20px;
+  }
+
+  .ai-start-row button {
+    width: 100%;
+  }
+
+  .ai-chat-form > div {
     grid-template-columns: 1fr;
   }
 }
