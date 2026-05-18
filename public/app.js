@@ -542,6 +542,21 @@ function renderAiPanel() {
   `;
 }
 
+function shouldUsePlainAiMode() {
+  return window.matchMedia("(max-width: 900px)").matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+async function fetchPlainAiReply(requestBody) {
+  const response = await fetch("/api/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "AI回复失败。");
+  return data.reply || data.analysis || "";
+}
+
 async function sendAiMessage(content, { reset = false, showUser = true } = {}) {
   if (!currentChart || aiState === "loading") return;
   const question = content.trim();
@@ -562,51 +577,62 @@ async function sendAiMessage(content, { reset = false, showUser = true } = {}) {
       chart: buildAiPayload(currentChart),
       messages: requestMessages,
     };
-
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...requestBody,
-        stream: true,
-      }),
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "AI回复失败。");
-    }
-    if (!response.body) throw new Error("当前浏览器不支持流式显示。");
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
     let reply = "";
-    let lastRender = 0;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      reply += decoder.decode(value, { stream: true });
-      assistantMessage.content = reply;
-      if (!aiMessages.includes(assistantMessage)) aiMessages = [...visibleMessages, assistantMessage];
-      const now = performance.now();
-      if (now - lastRender > 120) {
-        lastRender = now;
-        renderChart(currentChart);
+    if (shouldUsePlainAiMode()) {
+      reply = await fetchPlainAiReply(requestBody);
+    } else {
+      try {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...requestBody,
+            stream: true,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "AI回复失败。");
+        }
+        if (!response.body || !response.body.getReader) {
+          throw new Error("当前浏览器不支持流式显示。");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let lastRender = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          reply += decoder.decode(value, { stream: true });
+          assistantMessage.content = reply;
+          if (!aiMessages.includes(assistantMessage)) aiMessages = [...visibleMessages, assistantMessage];
+          const now = performance.now();
+          if (now - lastRender > 120) {
+            lastRender = now;
+            renderChart(currentChart);
+          }
+        }
+      } catch (streamError) {
+        if (reply.trim()) {
+          assistantMessage.content = reply;
+          if (!aiMessages.includes(assistantMessage)) aiMessages = [...visibleMessages, assistantMessage];
+        } else {
+          assistantMessage.content = "正在切换兼容模式重试...";
+          aiMessages = [...visibleMessages, assistantMessage];
+          renderChart(currentChart);
+          reply = await fetchPlainAiReply(requestBody);
+        }
       }
     }
 
     if (!reply.trim()) {
-      assistantMessage.content = "流式返回为空，正在切换普通模式重试...";
+      assistantMessage.content = "正在切换兼容模式重试...";
       aiMessages = [...visibleMessages, assistantMessage];
       renderChart(currentChart);
-      const fallbackResponse = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      const fallbackData = await fallbackResponse.json().catch(() => ({}));
-      if (!fallbackResponse.ok) throw new Error(fallbackData.error || "AI回复失败。");
-      reply = fallbackData.reply || fallbackData.analysis || "";
+      reply = await fetchPlainAiReply(requestBody);
     }
 
     assistantMessage.content = reply.trim() || "AI暂时没有返回内容，请重新发送一次。";
