@@ -1064,6 +1064,21 @@ button:disabled {
   line-height: 1.55;
 }
 
+.settings-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-switch {
+  align-content: center;
+  min-height: 44px;
+  border: 1px solid rgba(115, 92, 71, 0.14);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(255, 253, 249, 0.58);
+}
+
 .workflow-steps {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1389,6 +1404,7 @@ blockquote {
   .report-version-list article,
   .knowledge-editor,
   .knowledge-template-list article,
+  .settings-form,
   .knowledge-grid,
   .module-grid-panel,
   .workflow-steps,

@@ -20,6 +20,7 @@ const initialChartViewHtml = chartView.innerHTML;
 const CASE_STORAGE_KEY = "bazi-cases";
 const REPORT_STORAGE_KEY = "bazi-reports";
 const KNOWLEDGE_STORAGE_KEY = "bazi-knowledge";
+const BUSINESS_SETTINGS_KEY = "bazi-business-settings";
 const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   year: "numeric",
   month: "numeric",
@@ -213,6 +214,36 @@ function getKnowledgeTemplates() {
 
 function setKnowledgeTemplates(items) {
   localStorage.setItem(KNOWLEDGE_STORAGE_KEY, JSON.stringify(items));
+}
+
+function defaultBusinessSettings() {
+  return {
+    appName: "八字排盘工作台",
+    aiModel: "openai/gpt-oss-120b:free",
+    ziHourDefault: true,
+    trueSolarTime: false,
+    reportPrice: 199,
+    monthlyPrice: 399,
+    freeQuota: 3,
+    deliveryMode: "可编辑报告 + 复制文本",
+  };
+}
+
+function getBusinessSettings() {
+  try {
+    return { ...defaultBusinessSettings(), ...JSON.parse(localStorage.getItem(BUSINESS_SETTINGS_KEY) || "{}") };
+  } catch {
+    return defaultBusinessSettings();
+  }
+}
+
+function setBusinessSettings(settings) {
+  localStorage.setItem(BUSINESS_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function applyBusinessSettings() {
+  const settings = getBusinessSettings();
+  form.elements.ziHour.checked = Boolean(settings.ziHourDefault);
 }
 
 function getFormPayload() {
@@ -852,12 +883,57 @@ function renderKnowledgeModule() {
 }
 
 function renderSettingsModule() {
+  const settings = getBusinessSettings();
   const content = `
     <section class="module-grid-panel">
       <article><strong>AI配置</strong><span>OpenRouter、模型队列、调用额度、提示词版本</span></article>
       <article><strong>排盘规则</strong><span>真太阳时、子时换日、神煞取法、流派偏好</span></article>
       <article><strong>会员体系</strong><span>免费试用、单次报告、月度会员、咨询师版</span></article>
       <article><strong>数据安全</strong><span>客户隐私、备份导出、云端同步、权限隔离</span></article>
+    </section>
+    <section class="module-card">
+      <div class="panel-heading">
+        <h2>商业配置</h2>
+        <span>本地保存</span>
+      </div>
+      <div class="settings-form">
+        <label>
+          <span>产品名称</span>
+          <input data-setting="appName" type="text" value="${escapeHtml(settings.appName)}" />
+        </label>
+        <label>
+          <span>AI模型标识</span>
+          <input data-setting="aiModel" type="text" value="${escapeHtml(settings.aiModel)}" />
+        </label>
+        <label>
+          <span>单份报告价格</span>
+          <input data-setting="reportPrice" type="number" min="0" value="${settings.reportPrice}" />
+        </label>
+        <label>
+          <span>月度会员价格</span>
+          <input data-setting="monthlyPrice" type="number" min="0" value="${settings.monthlyPrice}" />
+        </label>
+        <label>
+          <span>免费试用次数</span>
+          <input data-setting="freeQuota" type="number" min="0" value="${settings.freeQuota}" />
+        </label>
+        <label>
+          <span>交付方式</span>
+          <input data-setting="deliveryMode" type="text" value="${escapeHtml(settings.deliveryMode)}" />
+        </label>
+        <label class="switch-row settings-switch">
+          <input data-setting="ziHourDefault" type="checkbox" ${settings.ziHourDefault ? "checked" : ""} />
+          <span>默认按 23 点子时换日</span>
+        </label>
+        <label class="switch-row settings-switch">
+          <input data-setting="trueSolarTime" type="checkbox" ${settings.trueSolarTime ? "checked" : ""} />
+          <span>真太阳时开关预留</span>
+        </label>
+      </div>
+      <div class="report-actions">
+        <button type="button" data-action="save-business-settings">保存配置</button>
+        <button class="secondary" type="button" data-action="reset-business-settings">恢复默认</button>
+      </div>
     </section>
     <section class="module-card">
       <h2>下一阶段建议</h2>
@@ -1308,6 +1384,31 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "save-business-settings") {
+    const settings = { ...getBusinessSettings() };
+    chartView.querySelectorAll("[data-setting]").forEach((field) => {
+      const key = field.dataset.setting;
+      if (field.type === "checkbox") {
+        settings[key] = field.checked;
+      } else if (field.type === "number") {
+        settings[key] = Number(field.value || 0);
+      } else {
+        settings[key] = field.value.trim();
+      }
+    });
+    setBusinessSettings(settings);
+    applyBusinessSettings();
+    renderSettingsModule();
+    return;
+  }
+
+  if (button.dataset.action === "reset-business-settings") {
+    setBusinessSettings(defaultBusinessSettings());
+    applyBusinessSettings();
+    renderSettingsModule();
+    return;
+  }
+
   if (!currentChart) return;
 
   if (button.dataset.action === "clear-ai-chat") {
@@ -1437,5 +1538,6 @@ navButtons.forEach((button) => {
 
 fillLunarDays();
 setDefaultDateTime();
+applyBusinessSettings();
 renderDateMode();
 renderCaseList();
