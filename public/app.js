@@ -13,6 +13,8 @@ const caseNoteInput = document.querySelector("#case-note");
 const caseList = document.querySelector("#case-list");
 const caseCount = document.querySelector("#case-count");
 const errorView = document.querySelector("#error-view");
+const navButtons = [...document.querySelectorAll("[data-module]")];
+const initialChartViewHtml = chartView.innerHTML;
 
 const CASE_STORAGE_KEY = "bazi-cases";
 const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
@@ -24,6 +26,7 @@ let currentChart = null;
 let selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
 let aiState = "idle";
 let aiMessages = [];
+let activeModule = "workbench";
 
 function setDefaultDateTime() {
   const now = new Date();
@@ -542,6 +545,157 @@ function renderAiPanel() {
   `;
 }
 
+function renderModuleShell(title, subtitle, content) {
+  chartView.classList.remove("empty-state");
+  chartView.classList.add("chart-content");
+  chartView.innerHTML = `
+    <section class="module-page">
+      <div class="module-hero">
+        <span class="eyebrow">商业化模块</span>
+        <h2>${title}</h2>
+        <p>${subtitle}</p>
+      </div>
+      ${content}
+    </section>
+  `;
+}
+
+function renderCasesModule() {
+  const cases = getCases();
+  const savedThisMonth = cases.filter((item) => item.savedAt?.slice(0, 7) === new Date().toISOString().slice(0, 7)).length;
+  const content = `
+    <section class="module-stats">
+      <article><strong>${cases.length}</strong><span>累计案例</span></article>
+      <article><strong>${savedThisMonth}</strong><span>本月新增</span></article>
+      <article><strong>${currentChart ? "已生成" : "未生成"}</strong><span>当前命盘</span></article>
+    </section>
+    <section class="module-card">
+      <div class="panel-heading">
+        <h2>案例资产库</h2>
+        <span>本地存储</span>
+      </div>
+      <div class="case-board">
+        ${cases.length ? cases.map((item) => `
+          <article class="case-board-card">
+            <div>
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.pillars)} · ${escapeHtml(item.payload.birthDatetime.replace("T", " "))}</span>
+              ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+            </div>
+            <button class="secondary" type="button" data-action="load-module-case" data-id="${item.id}">打开</button>
+          </article>
+        `).join("") : `<p class="muted-copy">暂无案例。先在左侧排盘并保存，就会进入案例资产库。</p>`}
+      </div>
+    </section>
+  `;
+  renderModuleShell("案例中心", "商业化软件必须把每一次咨询沉淀成可检索、可复盘、可复访的客户资产。", content);
+}
+
+function renderReportsModule() {
+  const hasChart = Boolean(currentChart);
+  const sections = [
+    ["命盘摘要", hasChart ? `${currentChart.pillars.year.text} ${currentChart.pillars.month.text} ${currentChart.pillars.day.text} ${currentChart.pillars.hour.text}` : "等待生成命盘"],
+    ["结构分析", "日主、月令、五行气势、寒暖燥湿"],
+    ["做工路径", "十神透藏、合冲刑害、用事链条"],
+    ["验证清单", "性格、学历、出身、事业、婚恋"],
+    ["交付版本", "咨询师修订后导出 PDF 或分享页"],
+  ];
+  const content = `
+    <section class="module-card">
+      <div class="panel-heading">
+        <h2>报告生产线</h2>
+        <span>${hasChart ? "可生成底稿" : "先排盘"}</span>
+      </div>
+      <div class="report-outline">
+        ${sections.map(([title, text], index) => `
+          <article>
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <strong>${title}</strong>
+              <p>${text}</p>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+    <section class="module-grid-panel">
+      <article><strong>模板管理</strong><span>不同价位对应不同报告模板</span></article>
+      <article><strong>人工校准</strong><span>AI初稿必须经过咨询师确认</span></article>
+      <article><strong>交付记录</strong><span>保存每次导出的版本和时间</span></article>
+    </section>
+  `;
+  renderModuleShell("报告中心", "把排盘结果变成可售卖的标准交付物：底稿、修订、导出、复访。", content);
+}
+
+function renderKnowledgeModule() {
+  const cards = [
+    ["盲派做工", "十神透藏、制化、做事链条、宫位取象"],
+    ["阴阳法", "寒暖燥湿、阴阳偏枯、气势流通"],
+    ["十神模板", "比劫、印星、食伤、财星、官杀断语库"],
+    ["作用关系", "天干五合四冲、地支六合六冲刑害破"],
+    ["神煞规则", "贵人、桃花、驿马、华盖、空亡等辅助象"],
+    ["验证话术", "客户可核对的问题清单和追问路径"],
+  ];
+  const content = `
+    <section class="knowledge-grid">
+      ${cards.map(([title, text]) => `
+        <article>
+          <strong>${title}</strong>
+          <p>${text}</p>
+          <button class="secondary" type="button" disabled>编辑预留</button>
+        </article>
+      `).join("")}
+    </section>
+  `;
+  renderModuleShell("知识库", "商业化的核心不是只会排盘，而是把你的理论、断语、验证经验沉淀成可复用资产。", content);
+}
+
+function renderSettingsModule() {
+  const content = `
+    <section class="module-grid-panel">
+      <article><strong>AI配置</strong><span>OpenRouter、模型队列、调用额度、提示词版本</span></article>
+      <article><strong>排盘规则</strong><span>真太阳时、子时换日、神煞取法、流派偏好</span></article>
+      <article><strong>会员体系</strong><span>免费试用、单次报告、月度会员、咨询师版</span></article>
+      <article><strong>数据安全</strong><span>客户隐私、备份导出、云端同步、权限隔离</span></article>
+    </section>
+    <section class="module-card">
+      <h2>下一阶段建议</h2>
+      <p>先把“案例中心”和“报告中心”做实，再接登录、支付和云端数据库。商业化早期最重要的是交付稳定、案例可复盘、报告可标准化。</p>
+    </section>
+  `;
+  renderModuleShell("系统设置", "这里放规则、AI、套餐、数据安全和部署配置，后续接商业闭环。", content);
+}
+
+function updateNav() {
+  navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.module === activeModule);
+  });
+}
+
+function renderWorkbench() {
+  if (currentChart) {
+    renderChart(currentChart);
+    return;
+  }
+  chartView.classList.add("empty-state");
+  chartView.classList.remove("chart-content");
+  chartView.innerHTML = initialChartViewHtml;
+}
+
+function renderActiveModule() {
+  updateNav();
+  if (activeModule === "workbench") renderWorkbench();
+  if (activeModule === "cases") renderCasesModule();
+  if (activeModule === "reports") renderReportsModule();
+  if (activeModule === "knowledge") renderKnowledgeModule();
+  if (activeModule === "settings") renderSettingsModule();
+}
+
+function setActiveModule(module) {
+  activeModule = module;
+  renderActiveModule();
+}
+
 function renderWorkflowPanel() {
   const steps = [
     ["建档", "输入与保存"],
@@ -825,6 +979,8 @@ form.addEventListener("submit", (event) => {
     selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
     aiState = "idle";
     aiMessages = [];
+    activeModule = "workbench";
+    updateNav();
     renderChart(currentChart);
     focusChartOnSmallScreen();
   } catch (error) {
@@ -843,7 +999,23 @@ form.addEventListener("change", (event) => {
 
 chartView.addEventListener("click", (event) => {
   const button = event.target.closest("[data-action]");
-  if (!button || !currentChart) return;
+  if (!button) return;
+
+  if (button.dataset.action === "load-module-case") {
+    const item = getCases().find((entry) => entry.id === button.dataset.id);
+    if (!item) return;
+    setFormPayload(item.payload);
+    caseNoteInput.value = item.note || "";
+    currentChart = chartFromPayload(item.payload);
+    selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
+    aiState = "idle";
+    aiMessages = [];
+    setActiveModule("workbench");
+    clearError();
+    return;
+  }
+
+  if (!currentChart) return;
 
   if (button.dataset.action === "clear-ai-chat") {
     aiState = "idle";
@@ -914,6 +1086,7 @@ saveCaseButton.addEventListener("click", () => {
   });
   setCases(cases.slice(0, 80));
   renderCaseList();
+  if (activeModule === "cases") renderCasesModule();
   saveCaseButton.textContent = "已保存";
   setTimeout(() => {
     saveCaseButton.textContent = "保存案例";
@@ -930,6 +1103,7 @@ caseList.addEventListener("click", (event) => {
   if (button.dataset.caseAction === "delete") {
     setCases(cases.filter((entry) => entry.id !== button.dataset.id));
     renderCaseList();
+    if (activeModule === "cases") renderCasesModule();
     return;
   }
 
@@ -940,10 +1114,18 @@ caseList.addEventListener("click", (event) => {
     selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
     aiState = "idle";
     aiMessages = [];
+    activeModule = "workbench";
+    updateNav();
     renderChart(currentChart);
     focusChartOnSmallScreen();
     clearError();
   }
+});
+
+navButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveModule(button.dataset.module);
+  });
 });
 
 fillLunarDays();
