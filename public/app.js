@@ -542,6 +542,48 @@ function renderAiPanel() {
   `;
 }
 
+function renderWorkflowPanel() {
+  const steps = [
+    ["建档", "输入与保存"],
+    ["排盘", "四柱流运"],
+    ["核验", "关系神煞"],
+    ["初析", "AI底稿"],
+    ["校准", "人工修订"],
+    ["交付", "报告导出"],
+  ];
+  const modules = [
+    ["报告中心", "PDF/分享页"],
+    ["客户档案", "复访记录"],
+    ["知识库", "断语模板"],
+    ["会员权益", "额度与套餐"],
+  ];
+
+  return `
+    <section class="business-panel">
+      <div class="panel-heading">
+        <h2>咨询工作流</h2>
+        <span>商业化框架</span>
+      </div>
+      <div class="workflow-steps">
+        ${steps.map(([name, meta]) => `
+          <div>
+            <strong>${name}</strong>
+            <span>${meta}</span>
+          </div>
+        `).join("")}
+      </div>
+      <div class="module-grid">
+        ${modules.map(([name, meta]) => `
+          <article>
+            <strong>${name}</strong>
+            <span>${meta}</span>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function shouldUsePlainAiMode() {
   return window.matchMedia("(max-width: 900px)").matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
@@ -731,6 +773,7 @@ function renderChart(chart) {
     ${renderPillarTable(chart.pillars, chart)}
     ${renderFlowPicker(chart)}
     ${renderRelations(chart)}
+    ${renderWorkflowPanel()}
     ${renderAiPanel()}
     <section class="lower-grid">
       <div class="panel">

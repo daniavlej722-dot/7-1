@@ -8,6 +8,26 @@
   </head>
   <body>
     <main class="app-shell">
+      <header class="product-topbar">
+        <div class="product-brand">
+          <div class="mini-seal">命</div>
+          <div>
+            <strong>八字排盘工作台</strong>
+            <span>专业版框架</span>
+          </div>
+        </div>
+        <nav class="product-nav" aria-label="产品模块">
+          <button class="nav-item active" type="button">工作台</button>
+          <button class="nav-item" type="button">案例</button>
+          <button class="nav-item" type="button">报告</button>
+          <button class="nav-item" type="button">知识库</button>
+          <button class="nav-item" type="button">设置</button>
+        </nav>
+        <div class="product-actions">
+          <span>本地工作区</span>
+          <button class="secondary compact-action" type="button">升级预留</button>
+        </div>
+      </header>
       <section class="workspace">
         <aside class="control-panel">
           <div class="brand-mark">
@@ -17,6 +37,13 @@
               <p>四柱 · 大运 · 流月 · 神煞 · 案例</p>
             </div>
           </div>
+
+          <section class="sidebar-section">
+            <div class="section-title">
+              <span>01</span>
+              <strong>命盘建档</strong>
+            </div>
+          </section>
 
           <form id="bazi-form">
             <label>
@@ -108,6 +135,12 @@
           </form>
 
           <button id="copy-button" class="secondary" type="button" disabled>复制排盘数据</button>
+          <section class="sidebar-section">
+            <div class="section-title">
+              <span>02</span>
+              <strong>案例资产</strong>
+            </div>
+          </section>
           <label>
             <span>案例备注</span>
             <textarea id="case-note" rows="3" placeholder="可记录来访背景、验证点、断语摘要"></textarea>
@@ -130,6 +163,20 @@
           <div id="chart-view" class="empty-state">
             <h2>输入出生信息后开始排盘</h2>
             <p>排盘会展示四柱、大运、该大运流月、神煞、藏干、十神和五行分布。</p>
+            <div class="empty-framework">
+              <article>
+                <strong>工作台</strong>
+                <span>排盘、流运、作用关系</span>
+              </article>
+              <article>
+                <strong>案例库</strong>
+                <span>建档、标签、复盘记录</span>
+              </article>
+              <article>
+                <strong>报告</strong>
+                <span>分析底稿、交付版本</span>
+              </article>
+            </div>
           </div>
         </section>
       </section>
