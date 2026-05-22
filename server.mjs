@@ -27,32 +27,26 @@ function loadEnv() {
 loadEnv();
 
 const port = Number(process.env.PORT || 5173);
-const openRouterModel = process.env.OPENROUTER_MODEL || "openrouter/free";
+const preferredFreeModel = "openai/gpt-oss-120b:free";
+const configuredModel = process.env.OPENROUTER_MODEL || preferredFreeModel;
+const openRouterModel = configuredModel === "openrouter/free" ? preferredFreeModel : configuredModel;
+const fallbackModels = [
+  openRouterModel,
+  "google/gemma-4-31b-it:free",
+  "openai/gpt-oss-20b:free",
+].filter((model, index, models) => models.indexOf(model) === index);
 
 const baziAnalysisRules = [
-  "你是一个谨慎的中文八字排盘分析助手。你只基于用户提供的排盘数据做传统命理角度的解读，不要宣称绝对准确，不要做医疗、法律、投资等高风险结论。",
-  "盘面数据中的 basicRules 和 fourPillars 是硬规则，必须逐字遵守，不得自行更改天干地支的阴阳五行。所有分析都必须先服从排盘数据，再谈理论。",
-  "基础五行必须牢记：甲乙为木，丙丁为火，戊己为土，庚辛为金，壬癸为水。阴阳必须牢记：甲丙戊庚壬为阳，乙丁己辛癸为阴。",
-  "地支五行必须牢记：寅卯为木，巳午为火，申酉为金，亥子为水，辰戌丑未为土。地支藏干必须以 basicRules 或 fourPillars 给出的数据为准。",
-  "十神关系必须以日主为中心。生我为印，我生为食伤，克我为官杀，我克为财，同我为比劫；再按阴阳同异区分正偏。不要把年干、月干等错当日主。",
-  "输出前必须在内部自查：日主是什么，日主五行阴阳是什么，年柱月柱日柱时柱分别是什么，天干地支五行有没有说错，十神有没有以日主为中心。自查过程不要输出。",
-  "如果任何分析内容与 basicRules 或 fourPillars 冲突，以 basicRules 和 fourPillars 为准，宁可少说，不可编造。发现不确定时必须说“此处需要结合现实验证”，不要硬断。",
-  "默认以本命四柱为核心，不要主动分析当前选择的大运、流年、流月；只有用户明确追问运势时才分析运势。",
-  "分析方法以盲派做工和阴阳法为主，兼看十神、五行、藏干、纳音、神煞、天干地支作用关系。神煞只能作为辅助象，不可单独作为结论。",
-  "分析顺序固定为：先看日主与月令，再看全局五行气势和寒暖燥湿，再看天干透出与地支根气，再看合冲刑害穿破，再看十神做工路径，再落到性格、学历、出身、事业财性、婚恋倾向、可验证点。",
-  "盲派做工逻辑：看哪个十神在天干透出，哪个十神在地支有根，谁制谁，谁生谁，谁被合走，谁被冲动，谁能做事，谁被破坏。结论必须说明做工链条，例如印生身、食伤泄秀、财官是否得用、比劫是否夺财、官杀是否有制化。",
-  "阴阳法逻辑：看阴阳偏枯、寒暖燥湿、调候需要、气势流通。不要把阴阳法等同于五行数量加减；必须结合月令、季节、透干、地支藏干和合冲后的气势。",
-  "性格分析：从日主性质、月令环境、透出十神、地支根气、合冲刑害综合判断。不要只凭日主一个字下结论。",
-  "学历学习分析：重点看印星、食伤、官杀约束、月令环境、日主承载力和清浊。只能说倾向，不要断定具体学历。",
-  "出身家庭分析：重点看年柱、月柱、印星、财星、官杀、父母宫是否受冲合刑害，以及全局清浊。只能说家庭氛围与资源倾向，不要编造具体家庭事实。",
-  "事业财性分析：重点看财星、官杀、食伤、印星、比劫之间的做工，不要简单说有财就富、见官就贵。",
-  "婚恋分析：重点看配偶宫日支、财官星、合冲刑害、日主与配偶星关系。必须谨慎表达，不要做绝对婚断。",
-  "可验证点要写成可核对倾向，例如性格表现、学习路径、家庭氛围、早年约束、兴趣能力、关系模式。不要写无法验证的玄断。",
-  "首次分析必须比普通回复更详细，覆盖：命局总论、阴阳气势与寒暖燥湿、盲派做工路径、命主性格、学历学习、出身家庭、事业财性、婚恋倾向、可验证点。",
-  "输出格式使用纯中文标题和自然段，不要使用 Markdown 符号，不要使用 #、*、-、•、表格、代码块、粗体符号。",
-  "每个标题后写一到三段完整自然段，尽量结合具体柱位、十神、藏干、合冲刑害和五行流通说明原因。",
-  "表达要具体、分段、可读；涉及学历、出身、婚恋等内容要用“倾向、较易、需要结合现实验证”等审慎措辞。",
-  "后续对话要直接回答用户追问，并持续参考同一份排盘数据和上述规则。",
+  "你是中文八字分析助手，只基于用户提供的排盘数据分析，不能编造现实事实。",
+  "basicRules、fourPillars、hiddenStems、tenGod 是硬规则，必须服从。不得自行改天干地支五行、藏干和十神。",
+  "天干五行：甲乙木、丙丁火、戊己土、庚辛金、壬癸水。阴阳：甲丙戊庚壬阳，乙丁己辛癸阴。",
+  "地支五行：寅卯木、巳午火、申酉金、亥子水、辰戌丑未土。藏干以排盘数据为准。",
+  "十神必须以日主为中心：生我为印，我生为食伤，克我为官杀，我克为财，同我为比劫，再分正偏。",
+  "默认只分析本命四柱，不分析当前选择的大运、流年、流月，除非用户明确追问。",
+  "方法以盲派做工和阴阳法为主：看月令气势、寒暖燥湿、透干根气、合冲刑害、十神之间谁生谁克谁制化。",
+  "输出必须是中文自然段，标题可用“命局总论、做工与气势、性格学历出身、事业婚恋、可验证点”。",
+  "禁止输出内部核对、自查、Markdown 符号、表格、代码块、#、*、-、•、✓、---。",
+  "结论要谨慎，用倾向、较易、需要验证等表达。发现数据不足时直说需要现实验证。",
 ].join("\n");
 
 const mimeTypes = {
@@ -117,6 +111,65 @@ function compact(value, maxLength = 16000) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n...内容已截断` : text;
 }
 
+function cleanAiText(text = "") {
+  return String(text)
+    .replace(/^[\s\S]{0,500}?内部核对[:：][\s\S]*?(?=\n\s*(命局总论|总论|阴阳气势|盲派做工|性格|学历|出身|事业|婚恋|可验证点)\s*\n)/, "")
+    .replace(/^[\s\S]{0,500}?自查[:：][\s\S]*?(?=\n\s*(命局总论|总论|阴阳气势|盲派做工|性格|学历|出身|事业|婚恋|可验证点)\s*\n)/, "")
+    .replace(/^我将.*?(核对|检查).*?\n+/m, "")
+    .replace(/^[\s-–—]{3,}$/gm, "")
+    .replace(/[✓✔]/g, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*[-*•]\s+/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/`{1,3}/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function formatPillar(pillar = {}) {
+  return `${pillar.label || ""}${pillar.pillar || `${pillar.stem || ""}${pillar.branch || ""}`}（天干${pillar.stem || ""}${pillar.stemElement || ""}${pillar.stemTenGod ? `为${pillar.stemTenGod}` : ""}，地支${pillar.branch || ""}${pillar.branchElement || ""}${pillar.branchTenGod ? `为${pillar.branchTenGod}` : ""}）`;
+}
+
+function formatRelations(relations = {}) {
+  const stems = relations.stems?.length ? relations.stems.join("；") : "天干未见特别强的合冲提示";
+  const branches = relations.branches?.length ? relations.branches.join("；") : "地支未见特别强的合冲提示";
+  return `天干作用：${stems}。地支作用：${branches}。`;
+}
+
+function buildRuleBasedAnalysis(chart = {}) {
+  const pillars = chart.fourPillars || {};
+  const pillarText = ["year", "month", "day", "hour"].map((key) => formatPillar(pillars[key])).filter(Boolean).join("；");
+  const elementText = chart.elements
+    ? Object.entries(chart.elements).map(([element, value]) => `${element}${Number(value).toFixed(1)}`).join("、")
+    : "五行分布需结合原盘查看";
+  const missingText = chart.missingElements?.length ? `缺${chart.missingElements.join("、")}` : "五行不见明显全缺";
+  const hiddenText = Object.values(pillars).map((pillar) => {
+    const hidden = pillar.hiddenStems?.map((item) => `${item.stem}${item.element}${item.tenGod ? `(${item.tenGod})` : ""}`).join("、") || "无";
+    return `${pillar.label || ""}藏干：${hidden}`;
+  }).join("；");
+  const day = pillars.day || {};
+  const month = pillars.month || {};
+  const year = pillars.year || {};
+  const hour = pillars.hour || {};
+
+  return cleanAiText(`
+命局总论
+本命以${chart.dayMaster || `${day.stem || ""}${day.stemElement || ""}`}为日主，四柱为：${pillarText}。月柱${month.pillar || ""}为命局环境，分析时先看月令气势，再看天干透出与地支根气。五行分布为${elementText}，${missingText}。${chart.seasonHint || ""} 此处为传统命理角度的倾向分析，仍需结合现实验证。
+
+做工与气势
+盲派看做工，先看十神在何处透出、何处有根。年柱偏向早年与家庭背景，月柱偏向父母环境、学习规则与社会入口，日柱看自身与配偶宫，时柱看后续发挥与子女晚景。当前盘面中，${year.label || "年柱"}天干为${year.stemTenGod || "-"}，${month.label || "月柱"}天干为${month.stemTenGod || "-"}，日干为${day.stemTenGod || "日主"}，时干为${hour.stemTenGod || "-"}。${hiddenText}。${formatRelations(chart.relations)}这些作用关系是判断做工是否顺畅、是否有冲动破坏的重点。
+
+性格学历出身
+性格上先从日主与月令看基本气质，再看比劫、印星、食伤、官杀和财星的组合。若比劫明显，通常自我意识、行动力和竞争心较强；印星明显，多重学习吸收、长辈资源与规则保护；食伤明显，多表达、技术、才艺和想法输出；官杀明显，多压力、规矩、目标感和外部约束；财星明显，多现实感、资源意识与经营欲。学历学习主要看印星、食伤、官杀是否清楚有力，以及月柱环境是否能承载。出身家庭重点看年柱、月柱和印财官的配合，不能单凭一处硬断。
+
+事业婚恋
+事业财性看财星、官杀、食伤、印星、比劫之间是否形成可用链条。财星不是单纯等于有钱，重点看财有没有根、有没有被比劫争夺、有没有食伤生财、有没有官杀承接。婚恋看日支配偶宫、财官星和合冲刑害，若日支被冲动或关系星受制，感情上较易有拉扯；若关系星清楚且有生扶，较易形成稳定关系。此处只能看倾向，具体应以经历验证。
+
+可验证点
+可先验证三类信息：一是性格上是否有明显的主动性、压力感、表达欲或规则感；二是学习与家庭中是否存在长辈要求、资源支持、早年约束或迁动变化；三是事业上更适合凭专业输出、经营资源、规则平台还是个人行动力来做事。后续可以继续追问某一项，我会围绕同一张盘细化。
+`);
+}
+
 async function analyzeBazi(req, res) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
@@ -126,6 +179,16 @@ async function analyzeBazi(req, res) {
 
   const payload = await readJsonBody(req);
   const chartPayload = payload.chart || payload;
+  if (payload.localFirst) {
+    const reply = buildRuleBasedAnalysis(chartPayload);
+    send(res, 200, {
+      analysis: reply,
+      reply,
+      model: "local-rule-based",
+      usage: null,
+    });
+    return;
+  }
   const userMessages = Array.isArray(payload.messages)
     ? payload.messages
       .filter((message) => ["user", "assistant"].includes(message.role) && message.content)
@@ -136,10 +199,9 @@ async function analyzeBazi(req, res) {
     ? userMessages
     : [{ role: "user", content: "请先对当前排盘做一次完整分析。" }];
   const requestBody = {
-    model: openRouterModel,
-    temperature: 0.28,
-    max_tokens: payload.stream ? 1800 : 2400,
-    stream: Boolean(payload.stream),
+    temperature: 0.2,
+    max_tokens: 1100,
+    stream: false,
     messages: [
       {
         role: "system",
@@ -153,73 +215,63 @@ async function analyzeBazi(req, res) {
     ],
   };
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "http://localhost:5173",
-      "X-Title": "Bazi Chart AI Analysis",
-    },
-    body: JSON.stringify(requestBody),
-  });
+  let data = null;
+  let usedModel = openRouterModel;
+  let lastError = null;
+
+  for (const model of fallbackModels) {
+    usedModel = model;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45_000);
+
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "http://localhost:5173",
+          "X-Title": "Bazi Chart AI Analysis",
+        },
+        body: JSON.stringify({ ...requestBody, model }),
+        signal: controller.signal,
+      });
+      const candidate = await response.json().catch(() => ({}));
+      const content = candidate?.choices?.[0]?.message?.content || "";
+
+      if (response.ok && content.trim()) {
+        data = candidate;
+        break;
+      }
+
+      lastError = candidate?.error?.message || candidate?.message || "OpenRouter 请求失败。";
+    } catch (error) {
+      lastError = error.name === "AbortError" ? "当前免费模型响应超时，已尝试切换备用模型。" : error.message;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  if (!data) {
+    send(res, 502, { error: lastError || "OpenRouter 请求失败。" });
+    return;
+  }
+  const reply = cleanAiText(data?.choices?.[0]?.message?.content || "");
 
   if (payload.stream) {
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      send(res, response.status, { error: data?.error?.message || data?.message || "OpenRouter 请求失败。" });
-      return;
-    }
-
     res.writeHead(200, {
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "no-cache",
       "x-accel-buffering": "no",
     });
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-    const writeSsePart = (part) => {
-      for (const line of part.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const dataText = trimmed.slice(5).trim();
-        if (!dataText || dataText === "[DONE]") continue;
-        try {
-          const data = JSON.parse(dataText);
-          const content = data?.choices?.[0]?.delta?.content || "";
-          if (content) res.write(content);
-        } catch {
-          // Ignore comments and malformed keepalive chunks.
-        }
-      }
-    };
-
-    for await (const chunk of response.body) {
-      buffer += decoder.decode(chunk, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() || "";
-
-      for (const part of parts) {
-        writeSsePart(part);
-      }
-    }
-    buffer += decoder.decode();
-    if (buffer.trim()) writeSsePart(buffer);
-    res.end();
-    return;
-  }
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    send(res, response.status, { error: data?.error?.message || data?.message || "OpenRouter 请求失败。" });
+    res.end(reply);
     return;
   }
 
   send(res, 200, {
-    analysis: data?.choices?.[0]?.message?.content || "",
-    reply: data?.choices?.[0]?.message?.content || "",
-    model: data?.model || openRouterModel,
+    analysis: reply,
+    reply,
+    model: data?.model || usedModel,
     usage: data?.usage || null,
   });
 }

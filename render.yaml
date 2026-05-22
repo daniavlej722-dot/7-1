@@ -10,6 +10,6 @@ services:
       - key: NODE_VERSION
         value: 22
       - key: OPENROUTER_MODEL
-        value: openrouter/free
+        value: openai/gpt-oss-120b:free
       - key: OPENROUTER_API_KEY
         sync: false

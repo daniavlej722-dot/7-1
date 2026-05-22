@@ -557,7 +557,7 @@ async function fetchPlainAiReply(requestBody) {
   return data.reply || data.analysis || "";
 }
 
-async function sendAiMessage(content, { reset = false, showUser = true } = {}) {
+async function sendAiMessage(content, { reset = false, showUser = true, localFirst = false } = {}) {
   if (!currentChart || aiState === "loading") return;
   const question = content.trim();
   if (!question) return;
@@ -576,10 +576,11 @@ async function sendAiMessage(content, { reset = false, showUser = true } = {}) {
     const requestBody = {
       chart: buildAiPayload(currentChart),
       messages: requestMessages,
+      localFirst,
     };
     let reply = "";
 
-    if (shouldUsePlainAiMode()) {
+    if (localFirst || shouldUsePlainAiMode()) {
       reply = await fetchPlainAiReply(requestBody);
     } else {
       try {
@@ -809,7 +810,7 @@ chartView.addEventListener("click", (event) => {
   }
 
   if (button.dataset.action === "start-ai-chat") {
-    sendAiMessage("请严格按系统中的八字分析规范执行。先内部核对 basicRules 和 fourPillars，确认日主、四柱、天干地支阴阳五行、十神无误后，再以盲派做工角度和阴阳法为主，对本命八字做一份详细的全局分析。不要分析当前选择的大运、流年、流月。", { reset: true, showUser: false });
+    sendAiMessage("请严格按排盘数据分析，不要输出核对过程。以盲派做工角度和阴阳法为主，对本命八字做一版完整初始分析，重点写命局气势、做工路径、性格、学历学习、出身家庭、事业财性、婚恋倾向和可验证点。不要分析当前选择的大运、流年、流月。", { reset: true, showUser: false, localFirst: true });
     return;
   }
 

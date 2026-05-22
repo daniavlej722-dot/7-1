@@ -31,7 +31,7 @@ AI 分析需要在 `.env` 中配置：
 
 ```text
 OPENROUTER_API_KEY=你的 OpenRouter API Key
-OPENROUTER_MODEL=openrouter/free
+OPENROUTER_MODEL=openai/gpt-oss-120b:free
 ```
 
 ## 排盘规则
