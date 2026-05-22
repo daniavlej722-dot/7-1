@@ -17,6 +17,7 @@ const navButtons = [...document.querySelectorAll("[data-module]")];
 const initialChartViewHtml = chartView.innerHTML;
 
 const CASE_STORAGE_KEY = "bazi-cases";
+const REPORT_STORAGE_KEY = "bazi-reports";
 const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   year: "numeric",
   month: "numeric",
@@ -27,6 +28,7 @@ let selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
 let aiState = "idle";
 let aiMessages = [];
 let activeModule = "workbench";
+let currentReportDraft = "";
 
 function setDefaultDateTime() {
   const now = new Date();
@@ -153,6 +155,18 @@ function setCases(cases) {
   localStorage.setItem(CASE_STORAGE_KEY, JSON.stringify(cases));
 }
 
+function getReports() {
+  try {
+    return JSON.parse(localStorage.getItem(REPORT_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function setReports(reports) {
+  localStorage.setItem(REPORT_STORAGE_KEY, JSON.stringify(reports));
+}
+
 function getFormPayload() {
   const data = new FormData(form);
   const birthDatetime = buildBirthDatetimeFromForm(data);
@@ -229,6 +243,10 @@ function escapeHtml(value = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function stripHtml(value = "") {
+  return String(value).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function elementClass(element) {
@@ -591,8 +609,70 @@ function renderCasesModule() {
   renderModuleShell("案例中心", "商业化软件必须把每一次咨询沉淀成可检索、可复盘、可复访的客户资产。", content);
 }
 
+function chartSignature(chart) {
+  if (!chart) return "";
+  return `${chart.pillars.year.text} ${chart.pillars.month.text} ${chart.pillars.day.text} ${chart.pillars.hour.text}`;
+}
+
+function hiddenStemLine(pillar) {
+  return (pillar.hiddenStems || []).map((item) => `${item.stem}${item.element}${item.tenGod ? `(${item.tenGod})` : ""}`).join("、") || "-";
+}
+
+function relationLine(chart) {
+  const relations = findRelations(Object.values(chart.pillars));
+  const stems = relations.stemRelations.length ? relations.stemRelations.map(stripHtml).join("；") : "未见明显天干合冲";
+  const branches = relations.branchRelations.length ? relations.branchRelations.map(stripHtml).join("；") : "未见明显地支合冲刑害破";
+  return `天干：${stems}\n地支：${branches}`;
+}
+
+function buildReportDraft(chart) {
+  const pillars = chart.pillars;
+  const elements = Object.entries(chart.summary.elements).map(([element, value]) => `${element}${value.toFixed(1)}`).join("、");
+  const shensha = chart.shensha.natal.map((item) => `${item.name}(${item.source})`).join("、") || "-";
+  const title = chart.input.name ? `${chart.input.name} 八字分析报告` : `${chartSignature(chart)} 八字分析报告`;
+
+  return [
+    title,
+    "",
+    "一、命盘信息",
+    `出生时间：${chart.solarTime.birthLocal}`,
+    `四柱：${chartSignature(chart)}`,
+    `日主：${chart.dayMaster.stem}${chart.dayMaster.polarity}${chart.dayMaster.element}`,
+    `月令：${chart.solarTerms.monthBoundary.name}（${chart.solarTerms.monthBoundary.localTime}）`,
+    "",
+    "二、四柱结构",
+    `年柱：${pillars.year.text}，天干${pillars.year.stem}${pillars.year.stemElement}为${pillars.year.tenGod}，地支${pillars.year.branch}${pillars.year.branchElement}为${pillars.year.branchTenGod}，藏干${hiddenStemLine(pillars.year)}。`,
+    `月柱：${pillars.month.text}，天干${pillars.month.stem}${pillars.month.stemElement}为${pillars.month.tenGod}，地支${pillars.month.branch}${pillars.month.branchElement}为${pillars.month.branchTenGod}，藏干${hiddenStemLine(pillars.month)}。`,
+    `日柱：${pillars.day.text}，天干${pillars.day.stem}${pillars.day.stemElement}为日主，地支${pillars.day.branch}${pillars.day.branchElement}为${pillars.day.branchTenGod}，藏干${hiddenStemLine(pillars.day)}。`,
+    `时柱：${pillars.hour.text}，天干${pillars.hour.stem}${pillars.hour.stemElement}为${pillars.hour.tenGod}，地支${pillars.hour.branch}${pillars.hour.branchElement}为${pillars.hour.branchTenGod}，藏干${hiddenStemLine(pillars.hour)}。`,
+    "",
+    "三、五行气势与阴阳",
+    `五行分布：${elements}。${chart.summary.seasonHint}`,
+    `缺失提示：${chart.summary.missingElements.length ? chart.summary.missingElements.join("、") : "五行不见明显全缺"}。此处应结合月令、透干、藏干和合冲后的气势判断，不宜只看数量。`,
+    "",
+    "四、做工路径",
+    "盲派做工先看十神在天干是否透出、在地支是否有根，再看谁生谁、谁克谁、谁被合走、谁被冲动。当前盘面可重点围绕月柱环境、日支配偶宫、时柱后续发挥来校准。",
+    relationLine(chart),
+    "",
+    "五、神煞辅助",
+    `本命神煞：${shensha}。神煞只作辅助取象，不单独作为结论。`,
+    "",
+    "六、咨询验证点",
+    "1. 性格上是否有明显的主动性、规则感、表达欲或压力感。",
+    "2. 学习与家庭中是否存在长辈要求、资源支持、早年约束或迁动变化。",
+    "3. 事业上更适合凭专业输出、经营资源、规则平台还是个人行动力来做事。",
+    "4. 婚恋关系中是否有吸引、拉扯、控制感或稳定承接。",
+    "",
+    "七、咨询师修订",
+    "此处填写人工判断、客户反馈、应期验证和最终交付话术。",
+  ].join("\n");
+}
+
 function renderReportsModule() {
   const hasChart = Boolean(currentChart);
+  const reports = getReports();
+  const latestReports = reports.slice(0, 5);
+  const draft = currentReportDraft;
   const sections = [
     ["命盘摘要", hasChart ? `${currentChart.pillars.year.text} ${currentChart.pillars.month.text} ${currentChart.pillars.day.text} ${currentChart.pillars.hour.text}` : "等待生成命盘"],
     ["结构分析", "日主、月令、五行气势、寒暖燥湿"],
@@ -616,6 +696,37 @@ function renderReportsModule() {
             </div>
           </article>
         `).join("")}
+      </div>
+      <div class="report-actions">
+        <button type="button" data-action="generate-report" ${hasChart ? "" : "disabled"}>${draft ? "重新生成底稿" : "生成报告底稿"}</button>
+        <button class="secondary" type="button" data-action="save-report" ${draft ? "" : "disabled"}>保存版本</button>
+        <button class="secondary" type="button" data-action="copy-report" ${draft ? "" : "disabled"}>复制报告</button>
+      </div>
+    </section>
+    ${draft ? `
+      <section class="module-card">
+        <div class="panel-heading">
+          <h2>可编辑报告底稿</h2>
+          <span>${draft.length} 字符</span>
+        </div>
+        <textarea class="report-editor" data-report-editor>${escapeHtml(draft)}</textarea>
+      </section>
+    ` : ""}
+    <section class="module-card">
+      <div class="panel-heading">
+        <h2>报告版本</h2>
+        <span>${reports.length}</span>
+      </div>
+      <div class="report-version-list">
+        ${latestReports.length ? latestReports.map((item) => `
+          <article>
+            <div>
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.pillars)} · ${new Date(item.savedAt).toLocaleString("zh-CN")}</span>
+            </div>
+            <button class="secondary" type="button" data-action="load-report" data-id="${item.id}">载入</button>
+          </article>
+        `).join("") : `<p class="muted-copy">暂无报告版本。生成底稿并保存后会出现在这里。</p>`}
       </div>
     </section>
     <section class="module-grid-panel">
@@ -1015,6 +1126,46 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "generate-report") {
+    if (!currentChart) return;
+    currentReportDraft = buildReportDraft(currentChart);
+    renderReportsModule();
+    return;
+  }
+
+  if (button.dataset.action === "save-report") {
+    if (!currentChart || !currentReportDraft.trim()) return;
+    const reports = getReports();
+    reports.unshift({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      title: currentChart.input.name ? `${currentChart.input.name} 分析报告` : `${chartSignature(currentChart)} 分析报告`,
+      pillars: chartSignature(currentChart),
+      content: currentReportDraft,
+      savedAt: new Date().toISOString(),
+    });
+    setReports(reports.slice(0, 120));
+    renderReportsModule();
+    return;
+  }
+
+  if (button.dataset.action === "copy-report") {
+    if (!currentReportDraft.trim()) return;
+    navigator.clipboard.writeText(currentReportDraft);
+    button.textContent = "已复制";
+    setTimeout(() => {
+      if (activeModule === "reports") renderReportsModule();
+    }, 900);
+    return;
+  }
+
+  if (button.dataset.action === "load-report") {
+    const report = getReports().find((item) => item.id === button.dataset.id);
+    if (!report) return;
+    currentReportDraft = report.content || "";
+    renderReportsModule();
+    return;
+  }
+
   if (!currentChart) return;
 
   if (button.dataset.action === "clear-ai-chat") {
@@ -1059,6 +1210,12 @@ chartView.addEventListener("submit", (event) => {
   event.preventDefault();
   const input = chatForm.elements.aiQuestion;
   sendAiMessage(input.value);
+});
+
+chartView.addEventListener("input", (event) => {
+  if (event.target.matches("[data-report-editor]")) {
+    currentReportDraft = event.target.value;
+  }
 });
 
 copyButton.addEventListener("click", async () => {

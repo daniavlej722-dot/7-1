@@ -927,6 +927,45 @@ button:disabled {
   gap: 3px;
 }
 
+.report-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.report-editor {
+  min-height: 420px;
+  padding: 14px;
+  line-height: 1.8;
+}
+
+.report-version-list {
+  display: grid;
+  gap: 8px;
+}
+
+.report-version-list article {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(115, 92, 71, 0.14);
+  border-radius: 7px;
+  padding: 10px;
+  background: rgba(255, 253, 249, 0.58);
+}
+
+.report-version-list article div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.report-version-list span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .knowledge-grid,
 .module-grid-panel {
   display: grid;
@@ -1267,6 +1306,8 @@ blockquote {
   .empty-framework,
   .module-stats,
   .case-board-card,
+  .report-actions,
+  .report-version-list article,
   .knowledge-grid,
   .module-grid-panel,
   .workflow-steps,
