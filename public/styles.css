@@ -419,6 +419,23 @@ button:disabled {
   line-height: 1.5;
 }
 
+.tag-list,
+.tag-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tag-list span {
+  display: inline-flex;
+  border: 1px solid rgba(53, 116, 95, 0.16);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(53, 116, 95, 0.06);
+  color: var(--jade);
+  font-size: 11px;
+}
+
 .case-delete {
   padding: 0 10px;
   color: var(--red) !important;
@@ -873,6 +890,22 @@ button:disabled {
   gap: 8px;
 }
 
+.case-search-row {
+  display: grid;
+  grid-template-columns: 1fr 92px;
+  gap: 8px;
+}
+
+.case-search-row input {
+  min-height: 40px;
+}
+
+.tag-filter-row button {
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--jade);
+}
+
 .case-board-card {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -984,6 +1017,51 @@ button:disabled {
 .knowledge-grid button {
   justify-self: start;
   min-height: 36px;
+}
+
+.knowledge-editor {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(160px, 0.8fr) 1.4fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.knowledge-editor textarea {
+  min-height: 44px;
+  resize: vertical;
+}
+
+.knowledge-template-list {
+  display: grid;
+  gap: 8px;
+}
+
+.knowledge-template-list article {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(115, 92, 71, 0.14);
+  border-radius: 7px;
+  padding: 10px;
+  background: rgba(255, 253, 249, 0.58);
+}
+
+.knowledge-template-list article div {
+  display: grid;
+  gap: 4px;
+}
+
+.knowledge-template-list article span,
+.module-card .tag-filter-row span {
+  color: var(--jade);
+  font-size: 12px;
+}
+
+.knowledge-template-list article p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .workflow-steps {
@@ -1305,9 +1383,12 @@ blockquote {
   .relations-panel,
   .empty-framework,
   .module-stats,
+  .case-search-row,
   .case-board-card,
   .report-actions,
   .report-version-list article,
+  .knowledge-editor,
+  .knowledge-template-list article,
   .knowledge-grid,
   .module-grid-panel,
   .workflow-steps,

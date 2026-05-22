@@ -10,6 +10,7 @@ const dateHint = document.querySelector("#date-hint");
 const copyButton = document.querySelector("#copy-button");
 const saveCaseButton = document.querySelector("#save-case-button");
 const caseNoteInput = document.querySelector("#case-note");
+const caseTagsInput = document.querySelector("#case-tags");
 const caseList = document.querySelector("#case-list");
 const caseCount = document.querySelector("#case-count");
 const errorView = document.querySelector("#error-view");
@@ -18,6 +19,7 @@ const initialChartViewHtml = chartView.innerHTML;
 
 const CASE_STORAGE_KEY = "bazi-cases";
 const REPORT_STORAGE_KEY = "bazi-reports";
+const KNOWLEDGE_STORAGE_KEY = "bazi-knowledge";
 const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   year: "numeric",
   month: "numeric",
@@ -29,6 +31,7 @@ let aiState = "idle";
 let aiMessages = [];
 let activeModule = "workbench";
 let currentReportDraft = "";
+let caseQuery = "";
 
 function setDefaultDateTime() {
   const now = new Date();
@@ -155,6 +158,30 @@ function setCases(cases) {
   localStorage.setItem(CASE_STORAGE_KEY, JSON.stringify(cases));
 }
 
+function parseTags(value = "") {
+  return String(value)
+    .split(/[,，、\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function caseSearchText(item) {
+  return [
+    item.title,
+    item.pillars,
+    item.note,
+    item.payload?.birthDatetime,
+    ...(item.tags || []),
+  ].join(" ").toLowerCase();
+}
+
+function filterCases(cases) {
+  const query = caseQuery.trim().toLowerCase();
+  if (!query) return cases;
+  return cases.filter((item) => caseSearchText(item).includes(query));
+}
+
 function getReports() {
   try {
     return JSON.parse(localStorage.getItem(REPORT_STORAGE_KEY) || "[]");
@@ -165,6 +192,27 @@ function getReports() {
 
 function setReports(reports) {
   localStorage.setItem(REPORT_STORAGE_KEY, JSON.stringify(reports));
+}
+
+function defaultKnowledgeTemplates() {
+  return [
+    { id: "base-work", category: "盲派做工", title: "做工总纲", content: "先看十神透出，再看地支根气；看谁能做事，谁被合走，谁被冲动，谁被制化。" },
+    { id: "yin-yang", category: "阴阳法", title: "寒暖燥湿", content: "阴阳法不只看五行数量，要结合月令、季节、透干、藏干和合冲后的气势。" },
+    { id: "verify", category: "验证话术", title: "学习验证", content: "询问学习阶段是否有规则压力、长辈要求、兴趣表达和阶段性转向。" },
+  ];
+}
+
+function getKnowledgeTemplates() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(KNOWLEDGE_STORAGE_KEY) || "[]");
+    return stored.length ? stored : defaultKnowledgeTemplates();
+  } catch {
+    return defaultKnowledgeTemplates();
+  }
+}
+
+function setKnowledgeTemplates(items) {
+  localStorage.setItem(KNOWLEDGE_STORAGE_KEY, JSON.stringify(items));
 }
 
 function getFormPayload() {
@@ -210,6 +258,10 @@ function setFormPayload(payload) {
   renderDateMode();
 }
 
+function renderTags(tags = []) {
+  return tags.length ? `<div class="tag-list">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : "";
+}
+
 function renderCaseList() {
   const cases = getCases();
   caseCount.textContent = String(cases.length);
@@ -220,6 +272,7 @@ function renderCaseList() {
             <strong>${item.title}</strong>
             <span>${item.pillars} · ${item.payload.birthDatetime.replace("T", " ")}</span>
             ${item.note ? `<p>${item.note}</p>` : ""}
+            ${renderTags(item.tags)}
           </button>
           <button class="case-delete" type="button" data-case-action="delete" data-id="${item.id}">删除</button>
         </article>
@@ -580,29 +633,37 @@ function renderModuleShell(title, subtitle, content) {
 
 function renderCasesModule() {
   const cases = getCases();
+  const filteredCases = filterCases(cases);
+  const allTags = [...new Set(cases.flatMap((item) => item.tags || []))].slice(0, 14);
   const savedThisMonth = cases.filter((item) => item.savedAt?.slice(0, 7) === new Date().toISOString().slice(0, 7)).length;
   const content = `
     <section class="module-stats">
       <article><strong>${cases.length}</strong><span>累计案例</span></article>
       <article><strong>${savedThisMonth}</strong><span>本月新增</span></article>
-      <article><strong>${currentChart ? "已生成" : "未生成"}</strong><span>当前命盘</span></article>
+      <article><strong>${filteredCases.length}</strong><span>当前筛选</span></article>
     </section>
     <section class="module-card">
       <div class="panel-heading">
         <h2>案例资产库</h2>
         <span>本地存储</span>
       </div>
+      <div class="case-search-row">
+        <input data-case-search type="search" placeholder="搜索姓名、四柱、标签、备注" value="${escapeHtml(caseQuery)}" />
+        <button class="secondary" type="button" data-action="clear-case-search" ${caseQuery ? "" : "disabled"}>清空</button>
+      </div>
+      ${allTags.length ? `<div class="tag-filter-row">${allTags.map((tag) => `<button class="secondary" type="button" data-action="filter-case-tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join("")}</div>` : ""}
       <div class="case-board">
-        ${cases.length ? cases.map((item) => `
+        ${filteredCases.length ? filteredCases.map((item) => `
           <article class="case-board-card">
             <div>
               <strong>${escapeHtml(item.title)}</strong>
               <span>${escapeHtml(item.pillars)} · ${escapeHtml(item.payload.birthDatetime.replace("T", " "))}</span>
+              ${renderTags(item.tags)}
               ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
             </div>
             <button class="secondary" type="button" data-action="load-module-case" data-id="${item.id}">打开</button>
           </article>
-        `).join("") : `<p class="muted-copy">暂无案例。先在左侧排盘并保存，就会进入案例资产库。</p>`}
+        `).join("") : `<p class="muted-copy">${cases.length ? "没有匹配的案例。" : "暂无案例。先在左侧排盘并保存，就会进入案例资产库。"}</p>`}
       </div>
     </section>
   `;
@@ -747,15 +808,44 @@ function renderKnowledgeModule() {
     ["神煞规则", "贵人、桃花、驿马、华盖、空亡等辅助象"],
     ["验证话术", "客户可核对的问题清单和追问路径"],
   ];
+  const templates = getKnowledgeTemplates();
+  const categories = [...new Set(templates.map((item) => item.category))];
   const content = `
     <section class="knowledge-grid">
       ${cards.map(([title, text]) => `
         <article>
           <strong>${title}</strong>
           <p>${text}</p>
-          <button class="secondary" type="button" disabled>编辑预留</button>
+          <button class="secondary" type="button" data-action="prefill-knowledge" data-category="${escapeHtml(title)}">写入模板</button>
         </article>
       `).join("")}
+    </section>
+    <section class="module-card">
+      <div class="panel-heading">
+        <h2>断语模板库</h2>
+        <span>${templates.length}</span>
+      </div>
+      <div class="knowledge-editor">
+        <input data-knowledge-title type="text" placeholder="模板标题" />
+        <input data-knowledge-category type="text" placeholder="分类，例如：盲派做工" />
+        <textarea data-knowledge-content placeholder="写入你的断语、验证问题或分析规则"></textarea>
+        <button type="button" data-action="save-knowledge-template">保存模板</button>
+      </div>
+      <div class="tag-filter-row">
+        ${categories.map((category) => `<span>${escapeHtml(category)}</span>`).join("")}
+      </div>
+      <div class="knowledge-template-list">
+        ${templates.map((item) => `
+          <article>
+            <div>
+              <span>${escapeHtml(item.category)}</span>
+              <strong>${escapeHtml(item.title)}</strong>
+              <p>${escapeHtml(item.content)}</p>
+            </div>
+            <button class="secondary" type="button" data-action="delete-knowledge-template" data-id="${escapeHtml(item.id)}">删除</button>
+          </article>
+        `).join("")}
+      </div>
     </section>
   `;
   renderModuleShell("知识库", "商业化的核心不是只会排盘，而是把你的理论、断语、验证经验沉淀成可复用资产。", content);
@@ -1117,12 +1207,25 @@ chartView.addEventListener("click", (event) => {
     if (!item) return;
     setFormPayload(item.payload);
     caseNoteInput.value = item.note || "";
+    caseTagsInput.value = (item.tags || []).join(", ");
     currentChart = chartFromPayload(item.payload);
     selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
     aiState = "idle";
     aiMessages = [];
     setActiveModule("workbench");
     clearError();
+    return;
+  }
+
+  if (button.dataset.action === "clear-case-search") {
+    caseQuery = "";
+    renderCasesModule();
+    return;
+  }
+
+  if (button.dataset.action === "filter-case-tag") {
+    caseQuery = button.dataset.tag || "";
+    renderCasesModule();
     return;
   }
 
@@ -1163,6 +1266,45 @@ chartView.addEventListener("click", (event) => {
     if (!report) return;
     currentReportDraft = report.content || "";
     renderReportsModule();
+    return;
+  }
+
+  if (button.dataset.action === "prefill-knowledge") {
+    const category = button.dataset.category || "";
+    const titleInput = chartView.querySelector("[data-knowledge-title]");
+    const categoryInput = chartView.querySelector("[data-knowledge-category]");
+    const contentInput = chartView.querySelector("[data-knowledge-content]");
+    if (titleInput && categoryInput && contentInput) {
+      titleInput.value = `${category}模板`;
+      categoryInput.value = category;
+      contentInput.value = "";
+      contentInput.focus();
+    }
+    return;
+  }
+
+  if (button.dataset.action === "save-knowledge-template") {
+    const title = chartView.querySelector("[data-knowledge-title]")?.value.trim();
+    const category = chartView.querySelector("[data-knowledge-category]")?.value.trim();
+    const content = chartView.querySelector("[data-knowledge-content]")?.value.trim();
+    if (!title || !category || !content) return;
+    const templates = getKnowledgeTemplates();
+    templates.unshift({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      title,
+      category,
+      content,
+    });
+    setKnowledgeTemplates(templates.slice(0, 160));
+    renderKnowledgeModule();
+    return;
+  }
+
+  if (button.dataset.action === "delete-knowledge-template") {
+    const id = button.dataset.id;
+    const templates = getKnowledgeTemplates().filter((item) => item.id !== id);
+    setKnowledgeTemplates(templates.length ? templates : defaultKnowledgeTemplates());
+    renderKnowledgeModule();
     return;
   }
 
@@ -1213,6 +1355,12 @@ chartView.addEventListener("submit", (event) => {
 });
 
 chartView.addEventListener("input", (event) => {
+  if (event.target.matches("[data-case-search]")) {
+    caseQuery = event.target.value;
+    renderCasesModule();
+    return;
+  }
+
   if (event.target.matches("[data-report-editor]")) {
     currentReportDraft = event.target.value;
   }
@@ -1237,6 +1385,7 @@ saveCaseButton.addEventListener("click", () => {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title,
     note: caseNoteInput.value.trim(),
+    tags: parseTags(caseTagsInput.value),
     payload,
     pillars: `${currentChart.pillars.year.text} ${currentChart.pillars.month.text} ${currentChart.pillars.day.text} ${currentChart.pillars.hour.text}`,
     savedAt: new Date().toISOString(),
@@ -1267,6 +1416,7 @@ caseList.addEventListener("click", (event) => {
   if (item && button.dataset.caseAction === "load") {
     setFormPayload(item.payload);
     caseNoteInput.value = item.note || "";
+    caseTagsInput.value = (item.tags || []).join(", ");
     currentChart = chartFromPayload(item.payload);
     selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
     aiState = "idle";
