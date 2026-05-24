@@ -278,6 +278,19 @@ function filterCases(cases) {
   return cases.filter((item) => caseSearchText(item).includes(query));
 }
 
+function buildCaseSummaryText(item) {
+  const status = caseServiceStatus(item);
+  return [
+    `案例：${item.title}`,
+    `四柱：${item.pillars}`,
+    `出生：${item.payload?.birthDatetime?.replace("T", " ") || "-"}`,
+    `状态：${status.label}`,
+    `复盘：${formatShortDate(caseReviewDate(item))}`,
+    item.tags?.length ? `标签：${item.tags.join("、")}` : "标签：-",
+    item.note ? `备注：${item.note}` : "备注：待补充",
+  ].join("\n");
+}
+
 function getReports() {
   try {
     return JSON.parse(localStorage.getItem(REPORT_STORAGE_KEY) || "[]");
@@ -356,8 +369,8 @@ function buildLocalBackup() {
   };
 }
 
-function downloadTextFile(filename, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+function downloadTextFile(filename, text, type = "text/plain;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
@@ -878,6 +891,7 @@ function renderCasesModule() {
             </div>
             <div class="case-card-actions">
               <button class="secondary" type="button" data-action="load-module-case" data-id="${escapeHtml(item.id)}">打开</button>
+              <button class="secondary" type="button" data-action="copy-case-summary" data-id="${escapeHtml(item.id)}">复制摘要</button>
               <button class="secondary" type="button" data-action="mark-case-reviewed" data-id="${escapeHtml(item.id)}">标记复盘</button>
             </div>
           </article>
@@ -1200,11 +1214,29 @@ function buildReportDraft(chart) {
   ].join("\n");
 }
 
+function reportQualityChecks(draft) {
+  const text = String(draft || "");
+  return [
+    { label: "命盘信息", done: text.includes("一、命盘信息") && text.includes("四柱：") },
+    { label: "专业研判", done: text.includes("专业研判要点") },
+    { label: "做工路径", done: text.includes("四、做工路径") },
+    { label: "验证点", done: text.includes("咨询验证点") },
+    { label: "人工修订", done: text.includes("咨询师修订") },
+  ];
+}
+
+function reportFileName() {
+  const base = currentChart ? (currentChart.input.name || chartSignature(currentChart).replace(/\s+/g, "")) : "bazi-report";
+  return `${base}-${new Date().toISOString().slice(0, 10)}.txt`;
+}
+
 function renderReportsModule() {
   const hasChart = Boolean(currentChart);
   const reports = getReports();
   const latestReports = reports.slice(0, 5);
   const draft = currentReportDraft;
+  const qualityChecks = reportQualityChecks(draft);
+  const qualityDone = qualityChecks.filter((item) => item.done).length;
   const sections = [
     ["命盘摘要", hasChart ? `${currentChart.pillars.year.text} ${currentChart.pillars.month.text} ${currentChart.pillars.day.text} ${currentChart.pillars.hour.text}` : "等待生成命盘"],
     ["结构分析", "日主、月令、五行气势、寒暖燥湿"],
@@ -1233,9 +1265,19 @@ function renderReportsModule() {
         <button type="button" data-action="generate-report" ${hasChart ? "" : "disabled"}>${draft ? "重新生成底稿" : "生成报告底稿"}</button>
         <button class="secondary" type="button" data-action="save-report" ${draft ? "" : "disabled"}>保存版本</button>
         <button class="secondary" type="button" data-action="copy-report" ${draft ? "" : "disabled"}>复制报告</button>
+        <button class="secondary" type="button" data-action="export-report" ${draft ? "" : "disabled"}>导出文本</button>
       </div>
     </section>
     ${draft ? `
+      <section class="module-card">
+        <div class="panel-heading">
+          <h2>报告质检</h2>
+          <span>${qualityDone}/${qualityChecks.length}</span>
+        </div>
+        <div class="quality-list">
+          ${qualityChecks.map((item) => `<span class="${item.done ? "done" : ""}"><i></i>${item.label}</span>`).join("")}
+        </div>
+      </section>
       <section class="module-card">
         <div class="panel-heading">
           <h2>可编辑报告底稿</h2>
@@ -1256,7 +1298,10 @@ function renderReportsModule() {
               <strong>${escapeHtml(item.title)}</strong>
               <span>${escapeHtml(item.pillars)} · ${new Date(item.savedAt).toLocaleString("zh-CN")}</span>
             </div>
-            <button class="secondary" type="button" data-action="load-report" data-id="${item.id}">载入</button>
+            <div class="template-actions">
+              <button class="secondary" type="button" data-action="load-report" data-id="${item.id}">载入</button>
+              <button class="secondary" type="button" data-action="delete-report" data-id="${item.id}">删除</button>
+            </div>
           </article>
         `).join("") : `<p class="muted-copy">暂无报告版本。生成底稿并保存后会出现在这里。</p>`}
       </div>
@@ -1313,7 +1358,11 @@ function renderKnowledgeModule() {
               <strong>${escapeHtml(item.title)}</strong>
               <p>${escapeHtml(item.content)}</p>
             </div>
-            <button class="secondary" type="button" data-action="delete-knowledge-template" data-id="${escapeHtml(item.id)}">删除</button>
+            <div class="template-actions">
+              <button class="secondary" type="button" data-action="copy-knowledge-template" data-id="${escapeHtml(item.id)}">复制</button>
+              <button class="secondary" type="button" data-action="append-knowledge-note" data-id="${escapeHtml(item.id)}">加入备注</button>
+              <button class="secondary" type="button" data-action="delete-knowledge-template" data-id="${escapeHtml(item.id)}">删除</button>
+            </div>
           </article>
         `).join("")}
       </div>
@@ -1739,6 +1788,17 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "copy-case-summary") {
+    const item = getCases().find((entry) => entry.id === button.dataset.id);
+    if (!item) return;
+    navigator.clipboard.writeText(buildCaseSummaryText(item));
+    button.textContent = "已复制";
+    setTimeout(() => {
+      if (activeModule === "cases") renderCasesModule();
+    }, 900);
+    return;
+  }
+
   if (button.dataset.action === "clear-case-search") {
     caseQuery = "";
     renderCasesModule();
@@ -1783,10 +1843,22 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "export-report") {
+    if (!currentReportDraft.trim()) return;
+    downloadTextFile(reportFileName(), currentReportDraft);
+    return;
+  }
+
   if (button.dataset.action === "load-report") {
     const report = getReports().find((item) => item.id === button.dataset.id);
     if (!report) return;
     currentReportDraft = report.content || "";
+    renderReportsModule();
+    return;
+  }
+
+  if (button.dataset.action === "delete-report") {
+    setReports(getReports().filter((item) => item.id !== button.dataset.id));
     renderReportsModule();
     return;
   }
@@ -1830,6 +1902,31 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "copy-knowledge-template") {
+    const item = getKnowledgeTemplates().find((entry) => entry.id === button.dataset.id);
+    if (!item) return;
+    navigator.clipboard.writeText(`${item.title}\n${item.content}`);
+    button.textContent = "已复制";
+    setTimeout(() => {
+      if (activeModule === "knowledge") renderKnowledgeModule();
+    }, 900);
+    return;
+  }
+
+  if (button.dataset.action === "append-knowledge-note") {
+    const item = getKnowledgeTemplates().find((entry) => entry.id === button.dataset.id);
+    if (!item) return;
+    const block = `【${item.category}｜${item.title}】\n${item.content}`;
+    caseNoteInput.value = caseNoteInput.value.trim()
+      ? `${caseNoteInput.value.trim()}\n\n${block}`
+      : block;
+    button.textContent = "已加入";
+    setTimeout(() => {
+      if (activeModule === "knowledge") renderKnowledgeModule();
+    }, 900);
+    return;
+  }
+
   if (button.dataset.action === "save-business-settings") {
     const settings = { ...getBusinessSettings() };
     chartView.querySelectorAll("[data-setting]").forEach((field) => {
@@ -1857,7 +1954,7 @@ chartView.addEventListener("click", (event) => {
 
   if (button.dataset.action === "export-local-backup") {
     const backup = buildLocalBackup();
-    downloadTextFile(`bazi-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(backup, null, 2));
+    downloadTextFile(`bazi-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(backup, null, 2), "application/json;charset=utf-8");
     return;
   }
 

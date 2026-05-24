@@ -1278,8 +1278,44 @@ button:disabled {
 
 .report-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
+}
+
+.quality-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.quality-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(23, 18, 16, 0.16);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quality-list i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(23, 18, 16, 0.24);
+  border-radius: 999px;
+  background: #fffdfa;
+}
+
+.quality-list .done {
+  color: var(--ink);
+  background: rgba(216, 255, 69, 0.18);
+}
+
+.quality-list .done i {
+  border-color: var(--ink);
+  background: var(--lime);
 }
 
 .report-editor {
@@ -1366,6 +1402,16 @@ button:disabled {
 .knowledge-template-list article div {
   display: grid;
   gap: 4px;
+}
+
+.template-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.template-actions button {
+  min-height: 32px;
+  white-space: nowrap;
 }
 
 .knowledge-template-list article span,
