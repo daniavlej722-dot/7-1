@@ -1284,18 +1284,12 @@ function renderWorkflowPanel() {
     ["校准", "人工修订"],
     ["交付", "报告导出"],
   ];
-  const modules = [
-    ["报告中心", "整理版本"],
-    ["个案记录", "复盘跟进"],
-    ["知识库", "断语模板"],
-    ["资料备份", "迁移保存"],
-  ];
 
   return `
     <section class="business-panel">
       <div class="panel-heading">
         <h2>咨询流程</h2>
-        <span>服务闭环</span>
+        <span>轻量闭环</span>
       </div>
       <div class="workflow-steps">
         ${steps.map(([name, meta]) => `
@@ -1303,14 +1297,6 @@ function renderWorkflowPanel() {
             <strong>${name}</strong>
             <span>${meta}</span>
           </div>
-        `).join("")}
-      </div>
-      <div class="module-grid">
-        ${modules.map(([name, meta]) => `
-          <article>
-            <strong>${name}</strong>
-            <span>${meta}</span>
-          </article>
         `).join("")}
       </div>
     </section>
@@ -1892,6 +1878,7 @@ saveCaseButton.addEventListener("click", () => {
   setCases(cases.slice(0, 80));
   renderCaseList();
   if (activeModule === "cases") renderCasesModule();
+  if (activeModule === "workbench") renderChart(currentChart);
   saveCaseButton.textContent = existing ? "已更新" : "已保存";
   setTimeout(() => {
     saveCaseButton.textContent = "保存案例";
