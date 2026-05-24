@@ -943,6 +943,58 @@ button:disabled {
   line-height: 1.5;
 }
 
+.professional-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(23, 18, 16, 0.14);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(248, 255, 232, 0.46);
+}
+
+.professional-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.professional-head strong {
+  font-size: 15px;
+}
+
+.professional-head span {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.professional-head i {
+  border: 1px solid rgba(23, 18, 16, 0.12);
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgba(255, 253, 249, 0.8);
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.professional-lines {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.professional-lines p {
+  border-left: 2px solid rgba(24, 138, 97, 0.34);
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1660,6 +1712,7 @@ blockquote {
   .lower-grid,
   .relations-panel,
   .insight-grid,
+  .professional-lines,
   .quick-actions,
   .service-checklist,
   .empty-framework,
@@ -1775,6 +1828,15 @@ blockquote {
 
   .insight-grid article {
     min-height: auto;
+  }
+
+  .professional-head {
+    display: grid;
+    align-items: start;
+  }
+
+  .professional-head span {
+    justify-content: flex-start;
   }
 
   .module-hero,

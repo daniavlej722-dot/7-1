@@ -22,6 +22,13 @@ const CASE_STORAGE_KEY = "bazi-cases";
 const REPORT_STORAGE_KEY = "bazi-reports";
 const KNOWLEDGE_STORAGE_KEY = "bazi-knowledge";
 const BUSINESS_SETTINGS_KEY = "bazi-business-settings";
+const TEN_GOD_GROUPS = {
+  比劫: ["比肩", "劫财"],
+  食伤: ["食神", "伤官"],
+  财星: ["正财", "偏财"],
+  官杀: ["正官", "七杀"],
+  印星: ["正印", "偏印"],
+};
 const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   year: "numeric",
   month: "numeric",
@@ -285,9 +292,10 @@ function setReports(reports) {
 
 function defaultKnowledgeTemplates() {
   return [
-    { id: "base-work", category: "盲派做工", title: "做工总纲", content: "先看十神透出，再看地支根气；看谁能做事，谁被合走，谁被冲动，谁被制化。" },
-    { id: "yin-yang", category: "阴阳法", title: "寒暖燥湿", content: "阴阳法不只看五行数量，要结合月令、季节、透干、藏干和合冲后的气势。" },
-    { id: "verify", category: "验证话术", title: "学习验证", content: "询问学习阶段是否有规则压力、长辈要求、兴趣表达和阶段性转向。" },
+    { id: "base-work", category: "盲派做工", title: "做工总纲", content: "先看月令定环境，再看天干透出定明处做事；地支藏干看根气和暗线，合冲刑害看事情如何被牵动、交换或打断。" },
+    { id: "ten-god-route", category: "十神路径", title: "十神成事", content: "比劫看自我与竞争，食伤看表达与产出，财星看资源与经营，官杀看规则压力与职位，印星看学习保护与资质。先分组，再看透干、通根、制化。" },
+    { id: "yin-yang", category: "阴阳法", title: "寒暖燥湿", content: "阴阳法不只看五行数量，要以月令为核心，结合季节寒暖燥湿、透干明暗、地支藏气和合冲后的气势来定调。" },
+    { id: "verify", category: "验证话术", title: "学习验证", content: "询问学习阶段是否有规则压力、长辈要求、兴趣表达、证书资质、换专业或阶段性转向；用反馈校准印星、食伤和官杀的实际作用。" },
   ];
 }
 
@@ -707,6 +715,7 @@ function basicRuleReference() {
 function buildAiPayload(chart) {
   const columns = Object.values(chart.pillars);
   const relations = findRelations(columns);
+  const professional = buildProfessionalProfile(chart);
   return {
     name: chart.input.name || "",
     gender: chart.input.gender,
@@ -718,6 +727,17 @@ function buildAiPayload(chart) {
     elements: chart.summary.elements,
     missingElements: chart.summary.missingElements,
     seasonHint: chart.summary.seasonHint,
+    professionalProfile: {
+      tags: professional.tags,
+      lines: professional.lines,
+      tenGodGroups: professional.tenGods.rankedGroups.map((item) => ({
+        group: item.group,
+        value: Number(item.value.toFixed(2)),
+      })),
+      visibleTenGods: professional.tenGods.visible,
+      hiddenTenGods: professional.tenGods.hidden,
+      dayMasterRoots: professional.tenGods.rootLabels,
+    },
     relations: {
       stems: relations.stemRelations.map((item) => item.replace(/<[^>]+>/g, " ")),
       branches: relations.branchRelations.map((item) => item.replace(/<[^>]+>/g, " ")),
@@ -891,15 +911,91 @@ function rankedElements(summary) {
     .map(([element, value]) => `${element}${Number(value).toFixed(1)}`);
 }
 
+function rankedElementEntries(summary) {
+  return Object.entries(summary.elements)
+    .sort((a, b) => b[1] - a[1])
+    .map(([element, value]) => ({ element, value: Number(value) }));
+}
+
 function relationPreview(relations) {
   const items = [...relations.stemRelations, ...relations.branchRelations].map(stripHtml);
   return items.length ? items.slice(0, 3).join("；") : "未见明显合冲刑害破";
+}
+
+function countTenGodProfile(chart) {
+  const counts = Object.fromEntries(Object.keys(TEN_GOD_GROUPS).map((group) => [group, 0]));
+  const visible = [];
+  const hidden = [];
+  const rootLabels = [];
+
+  Object.values(chart.pillars).forEach((pillar) => {
+    if (pillar.tenGod && pillar.tenGod !== "日主") {
+      visible.push(`${pillar.label}干${pillar.stem}${pillar.tenGod}`);
+      const group = Object.entries(TEN_GOD_GROUPS).find(([, gods]) => gods.includes(pillar.tenGod))?.[0];
+      if (group) counts[group] += 1;
+    }
+
+    (pillar.hiddenStems || []).forEach((item, index) => {
+      if (item.tenGod && item.tenGod !== "日主") {
+        hidden.push(`${pillar.label}支藏${item.stem}${item.tenGod}`);
+        const group = Object.entries(TEN_GOD_GROUPS).find(([, gods]) => gods.includes(item.tenGod))?.[0];
+        if (group) counts[group] += index === 0 ? 0.55 : 0.35;
+      }
+      if (item.element === chart.dayMaster.element) rootLabels.push(`${pillar.label}${pillar.branch}`);
+    });
+  });
+
+  const rankedGroups = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([group, value]) => ({ group, value }));
+
+  return {
+    counts,
+    rankedGroups,
+    visible,
+    hidden,
+    rootLabels: [...new Set(rootLabels)],
+  };
+}
+
+function buildProfessionalProfile(chart) {
+  const relations = findRelations(getDisplayColumns(chart.pillars, chart));
+  const tenGods = countTenGodProfile(chart);
+  const elementEntries = rankedElementEntries(chart.summary);
+  const strongest = elementEntries[0];
+  const weakest = elementEntries[elementEntries.length - 1];
+  const monthElement = chart.pillars.month.branchElement;
+  const topGods = tenGods.rankedGroups.filter((item) => item.value > 0).slice(0, 2);
+  const relationCount = relations.stemRelations.length + relations.branchRelations.length;
+  const lines = [
+    `月令以${chart.pillars.month.branch}${monthElement}为环境底色，先定寒暖燥湿，再看透干是否能成事。`,
+    tenGods.visible.length ? `天干明处：${tenGods.visible.join("、")}。` : "天干明处十神不多，需重看地支藏干与月令。 ",
+    tenGods.rootLabels.length ? `日主根气：${chart.dayMaster.stem}${chart.dayMaster.element}在${tenGods.rootLabels.join("、")}见根。` : `日主${chart.dayMaster.stem}${chart.dayMaster.element}明根不显，需看印比帮扶与流运引动。`,
+    `五行偏向：${strongest.element}较显，${weakest.element}较弱；不宜只按数量定旺衰，要回到月令和通根。`,
+    relationCount ? `作用关系：${relationPreview(relations)}，这些位置是核验变化与应事的入口。` : "作用关系不重，重点看十神位置、根气和岁运引动。",
+  ];
+
+  return {
+    monthElement,
+    strongest,
+    weakest,
+    tenGods,
+    topGods,
+    lines,
+    tags: [
+      `月令${chart.pillars.month.branch}${monthElement}`,
+      tenGods.rootLabels.length ? "日主有根" : "根气待核",
+      ...topGods.map((item) => `${item.group}较显`),
+      relationCount ? "关系需核" : "结构较静",
+    ],
+  };
 }
 
 function buildConsultationSummary(chart) {
   const { luck, year, month } = getSelectedFlow(chart);
   const relations = findRelations(getDisplayColumns(chart.pillars, chart));
   const elements = rankedElements(chart.summary).join("、");
+  const professional = buildProfessionalProfile(chart);
   const flow = luck && year
     ? `${luck.pillar}大运，${year.year}${year.pillar}流年${month ? `，${month.name}${month.pillar}流月` : ""}`
     : "未展开大运流年";
@@ -909,6 +1005,7 @@ function buildConsultationSummary(chart) {
     `出生时间：${chart.solarTime.birthLocal}`,
     `五行气势：${elements}`,
     `月令提示：${chart.summary.seasonHint}`,
+    `专业要点：${professional.lines.join(" ")}`,
     `当前流运：${flow}`,
     `作用关系：${relationPreview(relations)}`,
   ].join("\n");
@@ -918,14 +1015,18 @@ function buildVerificationChecklist(chart) {
   const relations = findRelations(getDisplayColumns(chart.pillars, chart));
   const elements = rankedElements(chart.summary);
   const missing = chart.summary.missingElements.length ? chart.summary.missingElements.join("、") : "无明显全缺";
+  const professional = buildProfessionalProfile(chart);
+  const topGodText = professional.topGods.length ? professional.topGods.map((item) => item.group).join("、") : "十神主线";
   return [
     "核验问题清单",
     `1. 日主为${chart.dayMaster.stem}${chart.dayMaster.polarity}${chart.dayMaster.element}，请核对性格中是否更明显体现主动性、规则感、压力感或表达欲。`,
     `2. 五行气势较明显的是${elements.slice(0, 2).join("、")}，缺失为${missing}，请核对生活中对应的学习、行动、资源、规则或流动性表现。`,
-    `3. 月令为${chart.solarTerms.monthBoundary.name}，请核对早年学习环境、家庭要求、父母资源或约束感是否明显。`,
-    `4. 作用关系提示：${relationPreview(relations)}，请核对关系、迁动、情绪拉扯或阶段变化是否对应。`,
-    "5. 事业方向请核对更像专业输出、规则平台、资源经营、个人行动，还是多线并行。",
-    "6. 婚恋关系请核对稳定承接、吸引拉扯、距离变化、沟通锋芒中哪一类更明显。",
+    `3. 月令为${chart.solarTerms.monthBoundary.name}，${professional.lines[0]}请核对早年环境、家庭要求、学习节奏和身体感受。`,
+    `4. 十神主线提示为${topGodText}，请分别核对自我竞争、表达产出、资源经营、规则压力、学习资质哪一类最常出现。`,
+    `5. 根气提示：${professional.tenGods.rootLabels.length ? professional.tenGods.rootLabels.join("、") : "日主明根不显"}，请核对做事是持续稳定，还是容易靠外部环境激发。`,
+    `6. 作用关系提示：${relationPreview(relations)}，请核对关系、迁动、情绪拉扯或阶段变化是否对应。`,
+    "7. 事业方向请核对更像专业输出、规则平台、资源经营、个人行动，还是多线并行。",
+    "8. 婚恋关系请核对稳定承接、吸引拉扯、距离变化、沟通锋芒中哪一类更明显。",
   ].join("\n");
 }
 
@@ -966,6 +1067,21 @@ function serviceStageItems(chart) {
     { label: "初稿", meta: "报告底稿", done: Boolean(currentReportDraft.trim()) },
     { label: "复盘", meta: "保存案例", done: getCases().some((item) => item.pillars === chartSignature(chart)) },
   ];
+}
+
+function renderProfessionalPanel(chart) {
+  const profile = buildProfessionalProfile(chart);
+  return `
+    <div class="professional-panel">
+      <div class="professional-head">
+        <strong>专业研判要点</strong>
+        <span>${profile.tags.map((tag) => `<i>${escapeHtml(tag)}</i>`).join("")}</span>
+      </div>
+      <div class="professional-lines">
+        ${profile.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderConsultationPanel(chart) {
@@ -1012,6 +1128,7 @@ function renderConsultationPanel(chart) {
           <p>${relationPreview(relations)}</p>
         </article>
       </div>
+      ${renderProfessionalPanel(chart)}
       <div class="quick-actions">
         <button type="button" data-action="save-case-inline">保存为案例</button>
         <button class="secondary" type="button" data-action="generate-report-inline">生成报告底稿</button>
@@ -1039,6 +1156,7 @@ function buildReportDraft(chart) {
   const elements = Object.entries(chart.summary.elements).map(([element, value]) => `${element}${value.toFixed(1)}`).join("、");
   const shensha = chart.shensha.natal.map((item) => `${item.name}(${item.source})`).join("、") || "-";
   const title = chart.input.name ? `${chart.input.name} 八字分析报告` : `${chartSignature(chart)} 八字分析报告`;
+  const professional = buildProfessionalProfile(chart);
 
   return [
     title,
@@ -1061,6 +1179,11 @@ function buildReportDraft(chart) {
     "三、五行气势与阴阳",
     `五行分布：${elements}。${chart.summary.seasonHint}`,
     `缺失提示：${chart.summary.missingElements.length ? chart.summary.missingElements.join("、") : "五行不见明显全缺"}。此处应结合月令、透干、藏干和合冲后的气势判断，不宜只看数量。`,
+    "",
+    "三-1、专业研判要点",
+    ...professional.lines,
+    `十神分组：${professional.tenGods.rankedGroups.map((item) => `${item.group}${item.value.toFixed(1)}`).join("、")}。`,
+    `明处十神：${professional.tenGods.visible.join("、") || "无明显透出"}。`,
     "",
     "四、做工路径",
     "盲派做工先看十神在天干是否透出、在地支是否有根，再看谁生谁、谁克谁、谁被合走、谁被冲动。当前盘面可重点围绕月柱环境、日支配偶宫、时柱后续发挥来校准。",

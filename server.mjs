@@ -42,6 +42,7 @@ const baziAnalysisRules = [
   "天干五行：甲乙木、丙丁火、戊己土、庚辛金、壬癸水。阴阳：甲丙戊庚壬阳，乙丁己辛癸阴。",
   "地支五行：寅卯木、巳午火、申酉金、亥子水、辰戌丑未土。藏干以排盘数据为准。",
   "十神必须以日主为中心：生我为印，我生为食伤，克我为官杀，我克为财，同我为比劫，再分正偏。",
+  "如果数据中提供 professionalProfile，必须优先参考其中的月令、透干、根气、十神分组和专业要点，不得与其相反。",
   "默认只分析本命四柱，不分析当前选择的大运、流年、流月，除非用户明确追问。",
   "方法以盲派做工和阴阳法为主：看月令气势、寒暖燥湿、透干根气、合冲刑害、十神之间谁生谁克谁制化。",
   "输出必须是中文自然段，标题可用“命局总论、做工与气势、性格学历出身、事业婚恋、可验证点”。",
@@ -138,6 +139,7 @@ function formatRelations(relations = {}) {
 
 function buildRuleBasedAnalysis(chart = {}) {
   const pillars = chart.fourPillars || {};
+  const professional = chart.professionalProfile || {};
   const pillarText = ["year", "month", "day", "hour"].map((key) => formatPillar(pillars[key])).filter(Boolean).join("；");
   const elementText = chart.elements
     ? Object.entries(chart.elements).map(([element, value]) => `${element}${Number(value).toFixed(1)}`).join("、")
@@ -151,13 +153,19 @@ function buildRuleBasedAnalysis(chart = {}) {
   const month = pillars.month || {};
   const year = pillars.year || {};
   const hour = pillars.hour || {};
+  const professionalLines = Array.isArray(professional.lines) && professional.lines.length
+    ? professional.lines.join(" ")
+    : "专业要点需结合月令、透干、根气、十神分组和作用关系继续校准。";
+  const tenGodGroups = Array.isArray(professional.tenGodGroups) && professional.tenGodGroups.length
+    ? professional.tenGodGroups.map((item) => `${item.group}${Number(item.value || 0).toFixed(1)}`).join("、")
+    : "十神分组待补充";
 
   return cleanAiText(`
 命局总论
 本命以${chart.dayMaster || `${day.stem || ""}${day.stemElement || ""}`}为日主，四柱为：${pillarText}。月柱${month.pillar || ""}为命局环境，分析时先看月令气势，再看天干透出与地支根气。五行分布为${elementText}，${missingText}。${chart.seasonHint || ""} 此处为传统命理角度的倾向分析，仍需结合现实验证。
 
 做工与气势
-盲派看做工，先看十神在何处透出、何处有根。年柱偏向早年与家庭背景，月柱偏向父母环境、学习规则与社会入口，日柱看自身与配偶宫，时柱看后续发挥与子女晚景。当前盘面中，${year.label || "年柱"}天干为${year.stemTenGod || "-"}，${month.label || "月柱"}天干为${month.stemTenGod || "-"}，日干为${day.stemTenGod || "日主"}，时干为${hour.stemTenGod || "-"}。${hiddenText}。${formatRelations(chart.relations)}这些作用关系是判断做工是否顺畅、是否有冲动破坏的重点。
+盲派看做工，先看十神在何处透出、何处有根。年柱偏向早年与家庭背景，月柱偏向父母环境、学习规则与社会入口，日柱看自身与配偶宫，时柱看后续发挥与子女晚景。当前盘面中，${year.label || "年柱"}天干为${year.stemTenGod || "-"}，${month.label || "月柱"}天干为${month.stemTenGod || "-"}，日干为${day.stemTenGod || "日主"}，时干为${hour.stemTenGod || "-"}。${hiddenText}。${formatRelations(chart.relations)}这些作用关系是判断做工是否顺畅、是否有冲动破坏的重点。程序结构化研判提示：${professionalLines} 十神分组为${tenGodGroups}。
 
 性格学历出身
 性格上先从日主与月令看基本气质，再看比劫、印星、食伤、官杀和财星的组合。若比劫明显，通常自我意识、行动力和竞争心较强；印星明显，多重学习吸收、长辈资源与规则保护；食伤明显，多表达、技术、才艺和想法输出；官杀明显，多压力、规矩、目标感和外部约束；财星明显，多现实感、资源意识与经营欲。学历学习主要看印星、食伤、官杀是否清楚有力，以及月柱环境是否能承载。出身家庭重点看年柱、月柱和印财官的配合，不能单凭一处硬断。
