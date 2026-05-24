@@ -16,7 +16,6 @@ const caseCount = document.querySelector("#case-count");
 const errorView = document.querySelector("#error-view");
 const navButtons = [...document.querySelectorAll("[data-module]")];
 const backupShortcut = document.querySelector("#backup-shortcut");
-const initialChartViewHtml = chartView.innerHTML;
 
 const CASE_STORAGE_KEY = "bazi-cases";
 const REPORT_STORAGE_KEY = "bazi-reports";
@@ -1455,9 +1454,37 @@ function renderWorkbench() {
     renderChart(currentChart);
     return;
   }
+  const cases = getCases();
+  const reports = getReports();
+  const latestCase = cases[0];
+  const latestReport = reports[0];
   chartView.classList.add("empty-state");
   chartView.classList.remove("chart-content");
-  chartView.innerHTML = initialChartViewHtml;
+  chartView.innerHTML = `
+    <span class="intro-kicker">${cases.length ? "欢迎回来，可以继续上次记录" : "第一次使用可以先快速体验"}</span>
+    <h2>${cases.length ? "继续整理最近的命盘" : "从一张命盘开始，把判断留下来"}</h2>
+    <p>${cases.length ? "你已有本地案例记录，可以直接打开最近案例、查看案例库，或从新命盘开始。" : "输入出生信息后，系统会把四柱、流运、作用关系、神煞、案例记录和报告底稿放在同一个工作台里。"}</p>
+    <div class="empty-actions">
+      ${latestCase ? `<button type="button" data-action="load-module-case" data-id="${escapeHtml(latestCase.id)}">继续最近案例</button>` : `<button type="button" data-action="use-demo-chart">先看示例盘</button>`}
+      <button class="secondary" type="button" data-action="use-current-chart">用当前时间排盘</button>
+      ${cases.length ? `<button class="secondary" type="button" data-action="open-module" data-module-target="cases">查看案例库</button>` : ""}
+    </div>
+    <p class="empty-note">${latestCase ? `最近案例：${escapeHtml(latestCase.title)} · ${escapeHtml(latestCase.pillars)}` : "示例不会自动保存，你可以随时换成真实资料。"}</p>
+    <div class="empty-framework">
+      <article>
+        <strong>${cases.length}</strong>
+        <span>本地案例</span>
+      </article>
+      <article>
+        <strong>${reports.length}</strong>
+        <span>报告版本${latestReport ? ` · 最近：${escapeHtml(latestReport.title)}` : ""}</span>
+      </article>
+      <article>
+        <strong>3步</strong>
+        <span>看盘面、做核验、留记录</span>
+      </article>
+    </div>
+  `;
 }
 
 function renderActiveModule() {
@@ -1771,6 +1798,11 @@ chartView.addEventListener("click", (event) => {
     setDefaultDateTime();
     currentReportDraft = "";
     form.requestSubmit();
+    return;
+  }
+
+  if (button.dataset.action === "open-module") {
+    setActiveModule(button.dataset.moduleTarget || "workbench");
     return;
   }
 
@@ -2172,3 +2204,4 @@ setDefaultDateTime();
 applyBusinessSettings();
 renderDateMode();
 renderCaseList();
+renderWorkbench();
