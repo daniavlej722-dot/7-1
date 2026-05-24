@@ -246,6 +246,42 @@ function applyBusinessSettings() {
   form.elements.ziHour.checked = Boolean(settings.ziHourDefault);
 }
 
+function buildLocalBackup() {
+  return {
+    app: "bazi-commercial-workbench",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    cases: getCases(),
+    reports: getReports(),
+    knowledge: getKnowledgeTemplates(),
+    settings: getBusinessSettings(),
+  };
+}
+
+function downloadTextFile(filename, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function restoreLocalBackup(data) {
+  if (!data || typeof data !== "object") throw new Error("备份文件格式不正确。");
+  if (!Array.isArray(data.cases) || !Array.isArray(data.reports) || !Array.isArray(data.knowledge)) {
+    throw new Error("备份文件缺少案例、报告或知识库数据。");
+  }
+  setCases(data.cases);
+  setReports(data.reports);
+  setKnowledgeTemplates(data.knowledge);
+  setBusinessSettings({ ...defaultBusinessSettings(), ...(data.settings || {}) });
+  applyBusinessSettings();
+  renderCaseList();
+}
+
 function getFormPayload() {
   const data = new FormData(form);
   const birthDatetime = buildBirthDatetimeFromForm(data);
@@ -299,13 +335,13 @@ function renderCaseList() {
   caseList.innerHTML = cases.length
     ? cases.map((item) => `
         <article class="case-card">
-          <button type="button" data-case-action="load" data-id="${item.id}">
-            <strong>${item.title}</strong>
-            <span>${item.pillars} · ${item.payload.birthDatetime.replace("T", " ")}</span>
-            ${item.note ? `<p>${item.note}</p>` : ""}
+          <button type="button" data-case-action="load" data-id="${escapeHtml(item.id)}">
+            <strong>${escapeHtml(item.title)}</strong>
+            <span>${escapeHtml(item.pillars)} · ${escapeHtml(item.payload.birthDatetime.replace("T", " "))}</span>
+            ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
             ${renderTags(item.tags)}
           </button>
-          <button class="case-delete" type="button" data-case-action="delete" data-id="${item.id}">删除</button>
+          <button class="case-delete" type="button" data-case-action="delete" data-id="${escapeHtml(item.id)}">删除</button>
         </article>
       `).join("")
     : `<p class="muted-copy">暂无案例。排盘后可保存当前案例。</p>`;
@@ -315,7 +351,7 @@ function renderShensha(shensha = []) {
   if (!shensha.length) return `<div class="shensha-list muted">-</div>`;
   return `
     <div class="shensha-list">
-      ${shensha.map((item) => `<span title="${item.source}：${item.note}">${item.name}</span>`).join("")}
+      ${shensha.map((item) => `<span title="${escapeHtml(item.source)}：${escapeHtml(item.note)}">${escapeHtml(item.name)}</span>`).join("")}
     </div>
   `;
 }
@@ -717,6 +753,63 @@ function relationLine(chart) {
   return `天干：${stems}\n地支：${branches}`;
 }
 
+function rankedElements(summary) {
+  return Object.entries(summary.elements)
+    .sort((a, b) => b[1] - a[1])
+    .map(([element, value]) => `${element}${Number(value).toFixed(1)}`);
+}
+
+function relationPreview(relations) {
+  const items = [...relations.stemRelations, ...relations.branchRelations].map(stripHtml);
+  return items.length ? items.slice(0, 3).join("；") : "未见明显合冲刑害破";
+}
+
+function renderConsultationPanel(chart) {
+  const { luck, year, month } = getSelectedFlow(chart);
+  const relations = findRelations(getDisplayColumns(chart.pillars, chart));
+  const elements = rankedElements(chart.summary);
+  const flowText = luck && year
+    ? `${luck.pillar}大运 · ${year.year}${year.pillar} · ${month ? `${month.name}${month.pillar}` : "未选流月"}`
+    : "填写性别后展开大运、流年、流月";
+  const missing = chart.summary.missingElements.length ? chart.summary.missingElements.join("、") : "无明显全缺";
+
+  return `
+    <section class="consultation-panel">
+      <div class="panel-heading">
+        <h2>咨询研判台</h2>
+        <span>当前盘面</span>
+      </div>
+      <div class="insight-grid">
+        <article>
+          <span>核验信息</span>
+          <strong>${chart.solarTime.birthLocal}</strong>
+          <p>${chart.input.gender === "unknown" ? "性别未填，大运顺逆暂不估算。" : `${chart.input.gender === "male" ? "男命" : "女命"}，${chart.majorLuck.direction.text}。`}</p>
+        </article>
+        <article>
+          <span>五行气势</span>
+          <strong>${elements.slice(0, 2).join(" / ")}</strong>
+          <p>缺失：${missing}。${chart.summary.seasonHint}</p>
+        </article>
+        <article>
+          <span>流运焦点</span>
+          <strong>${flowText}</strong>
+          <p>上方选择会同步进入原盘右侧与作用关系。</p>
+        </article>
+        <article>
+          <span>作用关系</span>
+          <strong>${relations.stemRelations.length + relations.branchRelations.length} 项</strong>
+          <p>${relationPreview(relations)}</p>
+        </article>
+      </div>
+      <div class="quick-actions">
+        <button type="button" data-action="save-case-inline">保存为案例</button>
+        <button class="secondary" type="button" data-action="generate-report-inline">生成报告底稿</button>
+        <button class="secondary" type="button" data-action="go-cases">查看案例库</button>
+      </div>
+    </section>
+  `;
+}
+
 function buildReportDraft(chart) {
   const pillars = chart.pillars;
   const elements = Object.entries(chart.summary.elements).map(([element, value]) => `${element}${value.toFixed(1)}`).join("、");
@@ -938,6 +1031,18 @@ function renderSettingsModule() {
     <section class="module-card">
       <h2>下一阶段建议</h2>
       <p>先把“案例中心”和“报告中心”做实，再接登录、支付和云端数据库。商业化早期最重要的是交付稳定、案例可复盘、报告可标准化。</p>
+    </section>
+    <section class="module-card">
+      <div class="panel-heading">
+        <h2>数据备份</h2>
+        <span>本地迁移</span>
+      </div>
+      <p>当前版本的数据保存在本机浏览器。上线早期可先用备份文件迁移案例、报告、知识库和配置。</p>
+      <div class="report-actions">
+        <button type="button" data-action="export-local-backup">导出本地数据</button>
+        <button class="secondary" type="button" data-action="import-local-backup">导入备份文件</button>
+      </div>
+      <input data-backup-file type="file" accept="application/json" hidden />
     </section>
   `;
   renderModuleShell("系统设置", "这里放规则、AI、套餐、数据安全和部署配置，后续接商业闭环。", content);
@@ -1204,6 +1309,7 @@ function renderChart(chart) {
     ${renderPillarTable(chart.pillars, chart)}
     ${renderFlowPicker(chart)}
     ${renderRelations(chart)}
+    ${renderConsultationPanel(chart)}
     ${renderWorkflowPanel()}
     ${renderAiPanel()}
     <section class="lower-grid">
@@ -1409,7 +1515,34 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "export-local-backup") {
+    const backup = buildLocalBackup();
+    downloadTextFile(`bazi-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(backup, null, 2));
+    return;
+  }
+
+  if (button.dataset.action === "import-local-backup") {
+    chartView.querySelector("[data-backup-file]")?.click();
+    return;
+  }
+
   if (!currentChart) return;
+
+  if (button.dataset.action === "save-case-inline") {
+    saveCaseButton.click();
+    return;
+  }
+
+  if (button.dataset.action === "generate-report-inline") {
+    currentReportDraft = buildReportDraft(currentChart);
+    setActiveModule("reports");
+    return;
+  }
+
+  if (button.dataset.action === "go-cases") {
+    setActiveModule("cases");
+    return;
+  }
 
   if (button.dataset.action === "clear-ai-chat") {
     aiState = "idle";
@@ -1464,6 +1597,24 @@ chartView.addEventListener("input", (event) => {
 
   if (event.target.matches("[data-report-editor]")) {
     currentReportDraft = event.target.value;
+  }
+});
+
+chartView.addEventListener("change", async (event) => {
+  if (!event.target.matches("[data-backup-file]")) return;
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+
+  try {
+    const data = JSON.parse(await file.text());
+    const ok = window.confirm("导入备份会覆盖当前本地案例、报告、知识库和配置，确认继续吗？");
+    if (!ok) return;
+    restoreLocalBackup(data);
+    currentReportDraft = "";
+    renderActiveModule();
+  } catch (error) {
+    showError(error.message || "导入失败，请检查备份文件。");
   }
 });
 

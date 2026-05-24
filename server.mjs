@@ -171,12 +171,6 @@ function buildRuleBasedAnalysis(chart = {}) {
 }
 
 async function analyzeBazi(req, res) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    send(res, 500, { error: "还没有配置 OpenRouter API Key，请在 .env 中设置 OPENROUTER_API_KEY。" });
-    return;
-  }
-
   const payload = await readJsonBody(req);
   const chartPayload = payload.chart || payload;
   if (payload.localFirst) {
@@ -189,6 +183,19 @@ async function analyzeBazi(req, res) {
     });
     return;
   }
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    const reply = `${buildRuleBasedAnalysis(chartPayload)}\n\n当前未配置 OpenRouter API Key，以上为本地规则初析。配置 Key 后可以继续进行自由追问。`;
+    send(res, 200, {
+      analysis: reply,
+      reply,
+      model: "local-rule-based",
+      usage: null,
+    });
+    return;
+  }
+
   const userMessages = Array.isArray(payload.messages)
     ? payload.messages
       .filter((message) => ["user", "assistant"].includes(message.role) && message.content)
