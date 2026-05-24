@@ -936,8 +936,54 @@ button:disabled {
 
 .quick-actions {
   display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.service-checklist {
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+}
+
+.service-checklist span {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  column-gap: 7px;
+  row-gap: 1px;
+  align-items: center;
+  border: 1px solid rgba(23, 18, 16, 0.16);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: rgba(255, 253, 249, 0.78);
+}
+
+.service-checklist i {
+  grid-row: span 2;
+  width: 13px;
+  height: 13px;
+  border: 1px solid rgba(23, 18, 16, 0.3);
+  border-radius: 999px;
+  background: #fffdfa;
+}
+
+.service-checklist span.done {
+  background: rgba(216, 255, 69, 0.18);
+}
+
+.service-checklist span.done i {
+  border-color: var(--ink);
+  background: var(--lime);
+}
+
+.service-checklist strong {
+  font-size: 13px;
+}
+
+.service-checklist small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .module-page {
@@ -972,7 +1018,8 @@ button:disabled {
 .module-card,
 .module-grid-panel article,
 .knowledge-grid article,
-.case-board-card {
+.case-board-card,
+.service-queue {
   border: 1px solid rgba(23, 18, 16, 0.22);
   border-radius: 8px;
   background: rgba(255, 253, 249, 0.82);
@@ -1006,11 +1053,64 @@ button:disabled {
 
 .module-stats span,
 .case-board-card span,
+.queue-item span,
 .report-outline p,
 .knowledge-grid p,
 .module-grid-panel span {
   color: var(--muted);
   line-height: 1.55;
+}
+
+.service-queue {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background:
+    linear-gradient(90deg, rgba(110, 231, 242, 0.16), transparent 52%),
+    rgba(255, 253, 249, 0.82);
+}
+
+.queue-list {
+  display: grid;
+  gap: 8px;
+}
+
+.queue-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(23, 18, 16, 0.16);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 253, 249, 0.72);
+}
+
+.queue-item.warn {
+  background: rgba(255, 229, 83, 0.14);
+}
+
+.queue-item.hot {
+  background: rgba(255, 59, 34, 0.06);
+  border-color: rgba(255, 59, 34, 0.22);
+}
+
+.queue-item div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.queue-item strong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.queue-item button {
+  min-height: 36px;
+  white-space: nowrap;
 }
 
 .case-board {
@@ -1067,6 +1167,16 @@ button:disabled {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.case-card-actions {
+  display: grid;
+  gap: 7px;
+}
+
+.case-card-actions button {
+  min-height: 36px;
+  white-space: nowrap;
 }
 
 .case-board-card p {
@@ -1555,10 +1665,12 @@ blockquote {
   .relations-panel,
   .insight-grid,
   .quick-actions,
+  .service-checklist,
   .empty-framework,
   .module-stats,
   .case-search-row,
   .case-board-card,
+  .queue-item,
   .report-actions,
   .report-version-list article,
   .knowledge-editor,
@@ -1671,6 +1783,7 @@ blockquote {
 
   .module-hero,
   .module-card,
+  .service-queue,
   .knowledge-grid article,
   .module-grid-panel article {
     padding: 12px;
