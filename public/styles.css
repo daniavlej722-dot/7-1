@@ -558,15 +558,26 @@ button:disabled {
   display: grid;
   align-content: center;
   min-height: 52vh;
-  max-width: 620px;
-  gap: 12px;
+  max-width: 760px;
+  gap: 10px;
+}
+
+.intro-kicker {
+  width: fit-content;
+  border: 1px solid rgba(23, 18, 16, 0.16);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgba(216, 255, 69, 0.26);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .empty-framework {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
 .empty-framework article {
@@ -588,6 +599,22 @@ button:disabled {
   line-height: 1.45;
 }
 
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.empty-actions button {
+  min-width: 150px;
+}
+
+.empty-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .chart-content {
   position: relative;
   display: block;
@@ -599,6 +626,7 @@ button:disabled {
   font-size: clamp(30px, 4vw, 54px);
   line-height: 1.04;
   letter-spacing: 0;
+  max-width: 680px;
 }
 
 .summary-band {
@@ -1612,6 +1640,7 @@ blockquote {
   }
 
   .control-panel {
+    order: 2;
     height: auto;
     min-height: auto;
     overflow: visible;
@@ -1620,6 +1649,7 @@ blockquote {
   }
 
   .result-panel {
+    order: 1;
     height: auto;
     min-height: 70vh;
     overflow: visible;
@@ -1808,6 +1838,15 @@ blockquote {
 
   .brand-mark {
     gap: 10px;
+  }
+
+  .empty-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .empty-actions button {
+    width: 100%;
   }
 
   .seal {

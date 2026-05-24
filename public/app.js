@@ -32,6 +32,19 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   month: "2-digit",
   day: "2-digit",
 });
+const DEMO_PAYLOAD = {
+  personName: "示例盘",
+  gender: "male",
+  dateMode: "solar",
+  birthDatetime: "2000-03-04T16:30",
+  lunarYear: 2000,
+  lunarMonth: 1,
+  lunarDay: 29,
+  lunarTime: "16:30",
+  lunarLeap: false,
+  timezone: 480,
+  ziHour: true,
+};
 let currentChart = null;
 let selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
 let aiState = "idle";
@@ -52,6 +65,20 @@ function setDefaultDateTime() {
   form.elements.lunarLeap.checked = lunar.isLeap;
   form.elements.lunarTime.value = local.toISOString().slice(11, 16);
   renderDateHint();
+}
+
+function openChartFromPayload(payload, { caseId = "", focus = true } = {}) {
+  setFormPayload(payload);
+  currentChart = chartFromPayload(payload);
+  selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
+  aiState = "idle";
+  aiMessages = [];
+  activeCaseId = caseId;
+  activeModule = "workbench";
+  updateNav();
+  renderChart(currentChart);
+  clearError();
+  if (focus) focusChartOnSmallScreen();
 }
 
 function parseDateTime(value) {
@@ -1541,15 +1568,7 @@ form.addEventListener("submit", (event) => {
   }
 
   try {
-    currentChart = chartFromPayload(payload);
-    selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
-    aiState = "idle";
-    aiMessages = [];
-    activeCaseId = "";
-    activeModule = "workbench";
-    updateNav();
-    renderChart(currentChart);
-    focusChartOnSmallScreen();
+    openChartFromPayload(payload);
   } catch (error) {
     showError(error.message || "排盘失败，请检查输入。");
   }
@@ -1568,19 +1587,27 @@ chartView.addEventListener("click", (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
 
+  if (button.dataset.action === "use-demo-chart") {
+    caseNoteInput.value = "";
+    caseTagsInput.value = "";
+    currentReportDraft = "";
+    openChartFromPayload(DEMO_PAYLOAD);
+    return;
+  }
+
+  if (button.dataset.action === "use-current-chart") {
+    setDefaultDateTime();
+    currentReportDraft = "";
+    form.requestSubmit();
+    return;
+  }
+
   if (button.dataset.action === "load-module-case") {
     const item = getCases().find((entry) => entry.id === button.dataset.id);
     if (!item) return;
-    setFormPayload(item.payload);
     caseNoteInput.value = item.note || "";
     caseTagsInput.value = (item.tags || []).join(", ");
-    activeCaseId = item.id;
-    currentChart = chartFromPayload(item.payload);
-    selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
-    aiState = "idle";
-    aiMessages = [];
-    setActiveModule("workbench");
-    clearError();
+    openChartFromPayload(item.payload, { caseId: item.id });
     return;
   }
 
@@ -1901,19 +1928,9 @@ caseList.addEventListener("click", (event) => {
   }
 
   if (item && button.dataset.caseAction === "load") {
-    setFormPayload(item.payload);
     caseNoteInput.value = item.note || "";
     caseTagsInput.value = (item.tags || []).join(", ");
-    activeCaseId = item.id;
-    currentChart = chartFromPayload(item.payload);
-    selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
-    aiState = "idle";
-    aiMessages = [];
-    activeModule = "workbench";
-    updateNav();
-    renderChart(currentChart);
-    focusChartOnSmallScreen();
-    clearError();
+    openChartFromPayload(item.payload, { caseId: item.id });
   }
 });
 
