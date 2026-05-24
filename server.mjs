@@ -186,7 +186,7 @@ async function analyzeBazi(req, res) {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    const reply = `${buildRuleBasedAnalysis(chartPayload)}\n\n当前未配置 OpenRouter API Key，以上为本地规则初析。配置 Key 后可以继续进行自由追问。`;
+    const reply = `${buildRuleBasedAnalysis(chartPayload)}\n\n当前未配置在线 AI Key，以上为本地规则初析。配置后可以继续进行自由追问。`;
     send(res, 200, {
       analysis: reply,
       reply,
@@ -251,7 +251,7 @@ async function analyzeBazi(req, res) {
         break;
       }
 
-      lastError = candidate?.error?.message || candidate?.message || "OpenRouter 请求失败。";
+      lastError = candidate?.error?.message || candidate?.message || "AI服务请求失败。";
     } catch (error) {
       lastError = error.name === "AbortError" ? "当前免费模型响应超时，已尝试切换备用模型。" : error.message;
     } finally {
@@ -260,7 +260,7 @@ async function analyzeBazi(req, res) {
   }
 
   if (!data) {
-    send(res, 502, { error: lastError || "OpenRouter 请求失败。" });
+    send(res, 502, { error: lastError || "AI服务请求失败。" });
     return;
   }
   const reply = cleanAiText(data?.choices?.[0]?.message?.content || "");

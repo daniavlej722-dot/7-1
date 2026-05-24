@@ -27,6 +27,11 @@ const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   month: "numeric",
   day: "numeric",
 });
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 let currentChart = null;
 let selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
 let aiState = "idle";
@@ -160,6 +165,35 @@ function setCases(cases) {
   localStorage.setItem(CASE_STORAGE_KEY, JSON.stringify(cases));
 }
 
+function formatShortDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return dateFormatter.format(date).replaceAll("/", "-");
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + Number(days || 0));
+  return next;
+}
+
+function caseReviewDate(item) {
+  if (item.reviewAt) return item.reviewAt;
+  const settings = getBusinessSettings();
+  return addDays(new Date(item.savedAt || Date.now()), settings.reviewReminderDays).toISOString();
+}
+
+function caseServiceStatus(item) {
+  const note = String(item.note || "").trim();
+  if (!note) return { label: "待补记录", tone: "warn" };
+  const reviewAt = new Date(caseReviewDate(item));
+  if (!Number.isNaN(reviewAt.getTime()) && reviewAt <= new Date()) {
+    return { label: "可复盘", tone: "hot" };
+  }
+  return { label: "已记录", tone: "calm" };
+}
+
 function parseTags(value = "") {
   return String(value)
     .split(/[,，、\s]+/)
@@ -251,7 +285,7 @@ function applyBusinessSettings() {
 
 function buildLocalBackup() {
   return {
-    app: "bazi-commercial-workbench",
+    app: "bazi-service-workbench",
     version: 1,
     exportedAt: new Date().toISOString(),
     cases: getCases(),
@@ -332,21 +366,29 @@ function renderTags(tags = []) {
   return tags.length ? `<div class="tag-list">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : "";
 }
 
+function renderStatusPill(status) {
+  return `<span class="status-pill ${status.tone}">${escapeHtml(status.label)}</span>`;
+}
+
 function renderCaseList() {
   const cases = getCases();
   caseCount.textContent = String(cases.length);
   caseList.innerHTML = cases.length
-    ? cases.map((item) => `
+    ? cases.map((item) => {
+      const status = caseServiceStatus(item);
+      return `
         <article class="case-card">
           <button type="button" data-case-action="load" data-id="${escapeHtml(item.id)}">
-            <strong>${escapeHtml(item.title)}</strong>
+            <strong>${escapeHtml(item.title)} ${renderStatusPill(status)}</strong>
             <span>${escapeHtml(item.pillars)} · ${escapeHtml(item.payload.birthDatetime.replace("T", " "))}</span>
             ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+            <small>复盘：${formatShortDate(caseReviewDate(item))}</small>
             ${renderTags(item.tags)}
           </button>
           <button class="case-delete" type="button" data-case-action="delete" data-id="${escapeHtml(item.id)}">删除</button>
         </article>
-      `).join("")
+      `;
+    }).join("")
     : `<p class="muted-copy">暂无案例。排盘后可保存当前案例。</p>`;
 }
 
@@ -706,11 +748,14 @@ function renderCasesModule() {
   const filteredCases = filterCases(cases);
   const allTags = [...new Set(cases.flatMap((item) => item.tags || []))].slice(0, 14);
   const savedThisMonth = cases.filter((item) => item.savedAt?.slice(0, 7) === new Date().toISOString().slice(0, 7)).length;
+  const dueCases = cases.filter((item) => caseServiceStatus(item).label === "可复盘").length;
+  const incompleteCases = cases.filter((item) => caseServiceStatus(item).label === "待补记录").length;
   const content = `
     <section class="module-stats">
       <article><strong>${cases.length}</strong><span>累计案例</span></article>
       <article><strong>${savedThisMonth}</strong><span>本月新增</span></article>
-      <article><strong>${filteredCases.length}</strong><span>当前筛选</span></article>
+      <article><strong>${dueCases}</strong><span>可复盘</span></article>
+      <article><strong>${incompleteCases}</strong><span>待补记录</span></article>
     </section>
     <section class="module-card">
       <div class="panel-heading">
@@ -723,17 +768,21 @@ function renderCasesModule() {
       </div>
       ${allTags.length ? `<div class="tag-filter-row">${allTags.map((tag) => `<button class="secondary" type="button" data-action="filter-case-tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join("")}</div>` : ""}
       <div class="case-board">
-        ${filteredCases.length ? filteredCases.map((item) => `
-          <article class="case-board-card">
+        ${filteredCases.length ? filteredCases.map((item) => {
+          const status = caseServiceStatus(item);
+          return `
+          <article class="case-board-card ${status.tone}">
             <div>
-              <strong>${escapeHtml(item.title)}</strong>
+              <strong>${escapeHtml(item.title)} ${renderStatusPill(status)}</strong>
               <span>${escapeHtml(item.pillars)} · ${escapeHtml(item.payload.birthDatetime.replace("T", " "))}</span>
+              <span>保存：${formatShortDate(item.savedAt)} · 复盘：${formatShortDate(caseReviewDate(item))}</span>
               ${renderTags(item.tags)}
               ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
             </div>
-            <button class="secondary" type="button" data-action="load-module-case" data-id="${item.id}">打开</button>
+            <button class="secondary" type="button" data-action="load-module-case" data-id="${escapeHtml(item.id)}">打开</button>
           </article>
-        `).join("") : `<p class="muted-copy">${cases.length ? "没有匹配的案例。" : "暂无案例。先在左侧排盘并保存，就会进入案例资产库。"}</p>`}
+        `;
+        }).join("") : `<p class="muted-copy">${cases.length ? "没有匹配的案例。" : "暂无案例。先在左侧排盘并保存，就会进入案例资产库。"}</p>`}
       </div>
     </section>
   `;
@@ -785,10 +834,23 @@ function buildConsultationSummary(chart) {
   ].join("\n");
 }
 
+function serviceCompleteness(chart) {
+  const checks = [
+    { label: "姓名备注", done: Boolean(chart.input.name?.trim()) },
+    { label: "性别", done: chart.input.gender !== "unknown" },
+    { label: "案例备注", done: Boolean(caseNoteInput.value.trim()) },
+    { label: "案例标签", done: parseTags(caseTagsInput.value).length > 0 },
+    { label: "报告底稿", done: Boolean(currentReportDraft.trim()) },
+  ];
+  const done = checks.filter((item) => item.done).length;
+  return { checks, done, total: checks.length };
+}
+
 function renderConsultationPanel(chart) {
   const { luck, year, month } = getSelectedFlow(chart);
   const relations = findRelations(getDisplayColumns(chart.pillars, chart));
   const elements = rankedElements(chart.summary);
+  const completeness = serviceCompleteness(chart);
   const flowText = luck && year
     ? `${luck.pillar}大运 · ${year.year}${year.pillar} · ${month ? `${month.name}${month.pillar}` : "未选流月"}`
     : "填写性别后展开大运、流年、流月";
@@ -805,6 +867,11 @@ function renderConsultationPanel(chart) {
           <span>核验信息</span>
           <strong>${chart.solarTime.birthLocal}</strong>
           <p>${chart.input.gender === "unknown" ? "性别未填，大运顺逆暂不估算。" : `${chart.input.gender === "male" ? "男命" : "女命"}，${chart.majorLuck.direction.text}。`}</p>
+        </article>
+        <article>
+          <span>记录完整度</span>
+          <strong>${completeness.done}/${completeness.total}</strong>
+          <p>${completeness.checks.filter((item) => !item.done).map((item) => item.label).join("、") || "资料已较完整。"}</p>
         </article>
         <article>
           <span>五行气势</span>
@@ -833,6 +900,7 @@ function renderConsultationPanel(chart) {
 }
 
 function buildReportDraft(chart) {
+  const settings = getBusinessSettings();
   const pillars = chart.pillars;
   const elements = Object.entries(chart.summary.elements).map(([element, value]) => `${element}${value.toFixed(1)}`).join("、");
   const shensha = chart.shensha.natal.map((item) => `${item.name}(${item.source})`).join("、") || "-";
@@ -846,6 +914,9 @@ function buildReportDraft(chart) {
     `四柱：${chartSignature(chart)}`,
     `日主：${chart.dayMaster.stem}${chart.dayMaster.polarity}${chart.dayMaster.element}`,
     `月令：${chart.solarTerms.monthBoundary.name}（${chart.solarTerms.monthBoundary.localTime}）`,
+    `记录方式：${settings.deliveryMode}`,
+    `报告语气：${settings.reportTone}`,
+    caseNoteInput.value.trim() ? `案例备注：${caseNoteInput.value.trim()}` : "案例备注：待补充",
     "",
     "二、四柱结构",
     `年柱：${pillars.year.text}，天干${pillars.year.stem}${pillars.year.stemElement}为${pillars.year.tenGod}，地支${pillars.year.branch}${pillars.year.branchElement}为${pillars.year.branchTenGod}，藏干${hiddenStemLine(pillars.year)}。`,
@@ -1664,6 +1735,7 @@ saveCaseButton.addEventListener("click", () => {
   const payload = getFormPayload();
   const title = payload.personName || `${currentChart.pillars.year.text}${currentChart.pillars.month.text}${currentChart.pillars.day.text}${currentChart.pillars.hour.text}`;
   const cases = getCases();
+  const reviewAt = addDays(new Date(), getBusinessSettings().reviewReminderDays).toISOString();
   cases.unshift({
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title,
@@ -1672,6 +1744,7 @@ saveCaseButton.addEventListener("click", () => {
     payload,
     pillars: `${currentChart.pillars.year.text} ${currentChart.pillars.month.text} ${currentChart.pillars.day.text} ${currentChart.pillars.hour.text}`,
     savedAt: new Date().toISOString(),
+    reviewAt,
   });
   setCases(cases.slice(0, 80));
   renderCaseList();
