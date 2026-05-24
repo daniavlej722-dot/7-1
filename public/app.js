@@ -15,6 +15,7 @@ const caseList = document.querySelector("#case-list");
 const caseCount = document.querySelector("#case-count");
 const errorView = document.querySelector("#error-view");
 const navButtons = [...document.querySelectorAll("[data-module]")];
+const backupShortcut = document.querySelector("#backup-shortcut");
 const initialChartViewHtml = chartView.innerHTML;
 
 const CASE_STORAGE_KEY = "bazi-cases";
@@ -226,6 +227,8 @@ function defaultBusinessSettings() {
     monthlyPrice: 399,
     freeQuota: 3,
     deliveryMode: "可编辑报告 + 复制文本",
+    reportTone: "温和、谨慎、便于核验",
+    reviewReminderDays: 30,
   };
 }
 
@@ -664,7 +667,7 @@ function renderAiPanel() {
     <section class="panel wide-panel ai-panel">
       <div class="panel-heading">
         <h2>AI对话</h2>
-        <span>${aiState === "error" ? "请求失败" : "OpenRouter"}</span>
+        <span>${aiState === "error" ? "请求失败" : "AI辅助"}</span>
       </div>
       <div class="ai-start-row">
         <button type="button" data-action="start-ai-chat" ${canStart ? "" : "disabled"}>
@@ -689,7 +692,7 @@ function renderModuleShell(title, subtitle, content) {
   chartView.innerHTML = `
     <section class="module-page">
       <div class="module-hero">
-        <span class="eyebrow">商业化模块</span>
+        <span class="eyebrow">服务模块</span>
         <h2>${title}</h2>
         <p>${subtitle}</p>
       </div>
@@ -734,7 +737,7 @@ function renderCasesModule() {
       </div>
     </section>
   `;
-  renderModuleShell("案例中心", "商业化软件必须把每一次咨询沉淀成可检索、可复盘、可复访的客户资产。", content);
+  renderModuleShell("案例中心", "把每一次咨询整理成可检索、可复盘、可继续跟进的案例资料。", content);
 }
 
 function chartSignature(chart) {
@@ -762,6 +765,24 @@ function rankedElements(summary) {
 function relationPreview(relations) {
   const items = [...relations.stemRelations, ...relations.branchRelations].map(stripHtml);
   return items.length ? items.slice(0, 3).join("；") : "未见明显合冲刑害破";
+}
+
+function buildConsultationSummary(chart) {
+  const { luck, year, month } = getSelectedFlow(chart);
+  const relations = findRelations(getDisplayColumns(chart.pillars, chart));
+  const elements = rankedElements(chart.summary).join("、");
+  const flow = luck && year
+    ? `${luck.pillar}大运，${year.year}${year.pillar}流年${month ? `，${month.name}${month.pillar}流月` : ""}`
+    : "未展开大运流年";
+  return [
+    `四柱：${chartSignature(chart)}`,
+    `日主：${chart.dayMaster.stem}${chart.dayMaster.polarity}${chart.dayMaster.element}`,
+    `出生时间：${chart.solarTime.birthLocal}`,
+    `五行气势：${elements}`,
+    `月令提示：${chart.summary.seasonHint}`,
+    `当前流运：${flow}`,
+    `作用关系：${relationPreview(relations)}`,
+  ].join("\n");
 }
 
 function renderConsultationPanel(chart) {
@@ -804,6 +825,7 @@ function renderConsultationPanel(chart) {
       <div class="quick-actions">
         <button type="button" data-action="save-case-inline">保存为案例</button>
         <button class="secondary" type="button" data-action="generate-report-inline">生成报告底稿</button>
+        <button class="secondary" type="button" data-action="copy-consultation-summary">复制研判摘要</button>
         <button class="secondary" type="button" data-action="go-cases">查看案例库</button>
       </div>
     </section>
@@ -863,12 +885,12 @@ function renderReportsModule() {
     ["结构分析", "日主、月令、五行气势、寒暖燥湿"],
     ["做工路径", "十神透藏、合冲刑害、用事链条"],
     ["验证清单", "性格、学历、出身、事业、婚恋"],
-    ["交付版本", "咨询师修订后导出 PDF 或分享页"],
+    ["整理版本", "咨询师修订后保存为可复用文本"],
   ];
   const content = `
     <section class="module-card">
       <div class="panel-heading">
-        <h2>报告生产线</h2>
+        <h2>报告整理台</h2>
         <span>${hasChart ? "可生成底稿" : "先排盘"}</span>
       </div>
       <div class="report-outline">
@@ -915,12 +937,12 @@ function renderReportsModule() {
       </div>
     </section>
     <section class="module-grid-panel">
-      <article><strong>模板管理</strong><span>不同价位对应不同报告模板</span></article>
+      <article><strong>模板管理</strong><span>不同场景对应不同报告模板</span></article>
       <article><strong>人工校准</strong><span>AI初稿必须经过咨询师确认</span></article>
-      <article><strong>交付记录</strong><span>保存每次导出的版本和时间</span></article>
+      <article><strong>版本记录</strong><span>保存每次整理后的版本和时间</span></article>
     </section>
   `;
-  renderModuleShell("报告中心", "把排盘结果变成可售卖的标准交付物：底稿、修订、导出、复访。", content);
+  renderModuleShell("报告中心", "把排盘结果整理成清晰、可修订、便于复盘的咨询记录。", content);
 }
 
 function renderKnowledgeModule() {
@@ -930,7 +952,7 @@ function renderKnowledgeModule() {
     ["十神模板", "比劫、印星、食伤、财星、官杀断语库"],
     ["作用关系", "天干五合四冲、地支六合六冲刑害破"],
     ["神煞规则", "贵人、桃花、驿马、华盖、空亡等辅助象"],
-    ["验证话术", "客户可核对的问题清单和追问路径"],
+    ["验证话术", "来访者可核对的问题清单和追问路径"],
   ];
   const templates = getKnowledgeTemplates();
   const categories = [...new Set(templates.map((item) => item.category))];
@@ -972,46 +994,46 @@ function renderKnowledgeModule() {
       </div>
     </section>
   `;
-  renderModuleShell("知识库", "商业化的核心不是只会排盘，而是把你的理论、断语、验证经验沉淀成可复用资产。", content);
+  renderModuleShell("知识库", "把理论、断语、验证经验沉淀成可复用内容，让每次服务更稳定。", content);
 }
 
 function renderSettingsModule() {
   const settings = getBusinessSettings();
   const content = `
     <section class="module-grid-panel">
-      <article><strong>AI配置</strong><span>OpenRouter、模型队列、调用额度、提示词版本</span></article>
+      <article><strong>AI辅助</strong><span>模型、提示词版本、回复风格</span></article>
       <article><strong>排盘规则</strong><span>真太阳时、子时换日、神煞取法、流派偏好</span></article>
-      <article><strong>会员体系</strong><span>免费试用、单次报告、月度会员、咨询师版</span></article>
-      <article><strong>数据安全</strong><span>客户隐私、备份导出、云端同步、权限隔离</span></article>
+      <article><strong>服务偏好</strong><span>报告语气、跟进周期、交付方式</span></article>
+      <article><strong>数据安全</strong><span>隐私提醒、备份导出、设备迁移</span></article>
     </section>
     <section class="module-card">
       <div class="panel-heading">
-        <h2>商业配置</h2>
+        <h2>使用偏好</h2>
         <span>本地保存</span>
       </div>
       <div class="settings-form">
         <label>
-          <span>产品名称</span>
+          <span>工作台名称</span>
           <input data-setting="appName" type="text" value="${escapeHtml(settings.appName)}" />
         </label>
         <label>
-          <span>AI模型标识</span>
+          <span>AI模型</span>
           <input data-setting="aiModel" type="text" value="${escapeHtml(settings.aiModel)}" />
         </label>
         <label>
-          <span>单份报告价格</span>
-          <input data-setting="reportPrice" type="number" min="0" value="${settings.reportPrice}" />
+          <span>报告语气</span>
+          <input data-setting="reportTone" type="text" value="${escapeHtml(settings.reportTone || defaultBusinessSettings().reportTone)}" />
         </label>
         <label>
-          <span>月度会员价格</span>
-          <input data-setting="monthlyPrice" type="number" min="0" value="${settings.monthlyPrice}" />
+          <span>复盘提醒天数</span>
+          <input data-setting="reviewReminderDays" type="number" min="0" value="${settings.reviewReminderDays ?? defaultBusinessSettings().reviewReminderDays}" />
         </label>
         <label>
-          <span>免费试用次数</span>
+          <span>常用记录数量</span>
           <input data-setting="freeQuota" type="number" min="0" value="${settings.freeQuota}" />
         </label>
         <label>
-          <span>交付方式</span>
+          <span>整理方式</span>
           <input data-setting="deliveryMode" type="text" value="${escapeHtml(settings.deliveryMode)}" />
         </label>
         <label class="switch-row settings-switch">
@@ -1029,15 +1051,15 @@ function renderSettingsModule() {
       </div>
     </section>
     <section class="module-card">
-      <h2>下一阶段建议</h2>
-      <p>先把“案例中心”和“报告中心”做实，再接登录、支付和云端数据库。商业化早期最重要的是交付稳定、案例可复盘、报告可标准化。</p>
+      <h2>体验建议</h2>
+      <p>先把案例记录、报告整理和知识库维护好，再考虑账号、云端同步和多人协作。服务体验稳定，比功能堆叠更重要。</p>
     </section>
-    <section class="module-card">
+    <section class="module-card" data-backup-section>
       <div class="panel-heading">
         <h2>数据备份</h2>
         <span>本地迁移</span>
       </div>
-      <p>当前版本的数据保存在本机浏览器。上线早期可先用备份文件迁移案例、报告、知识库和配置。</p>
+      <p>当前版本的数据保存在本机浏览器。可以用备份文件迁移案例、报告、知识库和配置。</p>
       <div class="report-actions">
         <button type="button" data-action="export-local-backup">导出本地数据</button>
         <button class="secondary" type="button" data-action="import-local-backup">导入备份文件</button>
@@ -1045,7 +1067,7 @@ function renderSettingsModule() {
       <input data-backup-file type="file" accept="application/json" hidden />
     </section>
   `;
-  renderModuleShell("系统设置", "这里放规则、AI、套餐、数据安全和部署配置，后续接商业闭环。", content);
+  renderModuleShell("系统设置", "管理排盘规则、AI辅助、记录方式和数据备份，让长期使用更稳。", content);
 }
 
 function updateNav() {
@@ -1088,17 +1110,17 @@ function renderWorkflowPanel() {
     ["交付", "报告导出"],
   ];
   const modules = [
-    ["报告中心", "PDF/分享页"],
-    ["客户档案", "复访记录"],
+    ["报告中心", "整理版本"],
+    ["个案记录", "复盘跟进"],
     ["知识库", "断语模板"],
-    ["会员权益", "额度与套餐"],
+    ["资料备份", "迁移保存"],
   ];
 
   return `
     <section class="business-panel">
       <div class="panel-heading">
-        <h2>咨询工作流</h2>
-        <span>商业化框架</span>
+        <h2>咨询流程</h2>
+        <span>服务闭环</span>
       </div>
       <div class="workflow-steps">
         ${steps.map(([name, meta]) => `
@@ -1539,6 +1561,15 @@ chartView.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.action === "copy-consultation-summary") {
+    navigator.clipboard.writeText(buildConsultationSummary(currentChart));
+    button.textContent = "已复制";
+    setTimeout(() => {
+      if (activeModule === "workbench") renderChart(currentChart);
+    }, 900);
+    return;
+  }
+
   if (button.dataset.action === "go-cases") {
     setActiveModule("cases");
     return;
@@ -1685,6 +1716,13 @@ navButtons.forEach((button) => {
   button.addEventListener("click", () => {
     setActiveModule(button.dataset.module);
   });
+});
+
+backupShortcut?.addEventListener("click", () => {
+  setActiveModule("settings");
+  setTimeout(() => {
+    chartView.querySelector("[data-backup-section]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 0);
 });
 
 fillLunarDays();
