@@ -251,6 +251,7 @@ function markCaseReviewed(id) {
   setCases(cases);
   renderCaseList();
   if (activeModule === "cases") renderCasesModule();
+  notify("已标记复盘");
 }
 
 function parseTags(value = "") {
@@ -377,6 +378,42 @@ function downloadTextFile(filename, text, type = "text/plain;charset=utf-8") {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function notify(message) {
+  let toast = document.querySelector(".app-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.className = "app-toast";
+    document.body.append(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(notify.timer);
+  notify.timer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 1600);
+}
+
+async function copyText(text) {
+  const value = String(text || "");
+  try {
+    await navigator.clipboard.writeText(value);
+    notify("已复制");
+    return true;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.append(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    textarea.remove();
+    notify(ok ? "已复制" : "复制失败，请手动选择文本");
+    return ok;
+  }
 }
 
 function restoreLocalBackup(data) {
@@ -1782,7 +1819,7 @@ form.addEventListener("change", (event) => {
   if (event.target.closest("#birth-datetime, #lunar-date-row")) renderDateHint();
 });
 
-chartView.addEventListener("click", (event) => {
+chartView.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
 
@@ -1823,7 +1860,7 @@ chartView.addEventListener("click", (event) => {
   if (button.dataset.action === "copy-case-summary") {
     const item = getCases().find((entry) => entry.id === button.dataset.id);
     if (!item) return;
-    navigator.clipboard.writeText(buildCaseSummaryText(item));
+    await copyText(buildCaseSummaryText(item));
     button.textContent = "已复制";
     setTimeout(() => {
       if (activeModule === "cases") renderCasesModule();
@@ -1862,12 +1899,13 @@ chartView.addEventListener("click", (event) => {
     });
     setReports(reports.slice(0, 120));
     renderReportsModule();
+    notify("报告版本已保存");
     return;
   }
 
   if (button.dataset.action === "copy-report") {
     if (!currentReportDraft.trim()) return;
-    navigator.clipboard.writeText(currentReportDraft);
+    await copyText(currentReportDraft);
     button.textContent = "已复制";
     setTimeout(() => {
       if (activeModule === "reports") renderReportsModule();
@@ -1878,6 +1916,7 @@ chartView.addEventListener("click", (event) => {
   if (button.dataset.action === "export-report") {
     if (!currentReportDraft.trim()) return;
     downloadTextFile(reportFileName(), currentReportDraft);
+    notify("报告已导出");
     return;
   }
 
@@ -1892,6 +1931,7 @@ chartView.addEventListener("click", (event) => {
   if (button.dataset.action === "delete-report") {
     setReports(getReports().filter((item) => item.id !== button.dataset.id));
     renderReportsModule();
+    notify("报告版本已删除");
     return;
   }
 
@@ -1923,6 +1963,7 @@ chartView.addEventListener("click", (event) => {
     });
     setKnowledgeTemplates(templates.slice(0, 160));
     renderKnowledgeModule();
+    notify("模板已保存");
     return;
   }
 
@@ -1931,13 +1972,14 @@ chartView.addEventListener("click", (event) => {
     const templates = getKnowledgeTemplates().filter((item) => item.id !== id);
     setKnowledgeTemplates(templates.length ? templates : defaultKnowledgeTemplates());
     renderKnowledgeModule();
+    notify("模板已删除");
     return;
   }
 
   if (button.dataset.action === "copy-knowledge-template") {
     const item = getKnowledgeTemplates().find((entry) => entry.id === button.dataset.id);
     if (!item) return;
-    navigator.clipboard.writeText(`${item.title}\n${item.content}`);
+    await copyText(`${item.title}\n${item.content}`);
     button.textContent = "已复制";
     setTimeout(() => {
       if (activeModule === "knowledge") renderKnowledgeModule();
@@ -1953,6 +1995,7 @@ chartView.addEventListener("click", (event) => {
       ? `${caseNoteInput.value.trim()}\n\n${block}`
       : block;
     button.textContent = "已加入";
+    notify("已加入案例备注");
     setTimeout(() => {
       if (activeModule === "knowledge") renderKnowledgeModule();
     }, 900);
@@ -1974,6 +2017,7 @@ chartView.addEventListener("click", (event) => {
     setBusinessSettings(settings);
     applyBusinessSettings();
     renderSettingsModule();
+    notify("配置已保存");
     return;
   }
 
@@ -1981,12 +2025,14 @@ chartView.addEventListener("click", (event) => {
     setBusinessSettings(defaultBusinessSettings());
     applyBusinessSettings();
     renderSettingsModule();
+    notify("已恢复默认配置");
     return;
   }
 
   if (button.dataset.action === "export-local-backup") {
     const backup = buildLocalBackup();
     downloadTextFile(`bazi-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(backup, null, 2), "application/json;charset=utf-8");
+    notify("备份已导出");
     return;
   }
 
@@ -2009,7 +2055,7 @@ chartView.addEventListener("click", (event) => {
   }
 
   if (button.dataset.action === "copy-consultation-summary") {
-    navigator.clipboard.writeText(buildConsultationSummary(currentChart));
+    await copyText(buildConsultationSummary(currentChart));
     button.textContent = "已复制";
     setTimeout(() => {
       if (activeModule === "workbench") renderChart(currentChart);
@@ -2018,7 +2064,7 @@ chartView.addEventListener("click", (event) => {
   }
 
   if (button.dataset.action === "copy-verification-checklist") {
-    navigator.clipboard.writeText(buildVerificationChecklist(currentChart));
+    await copyText(buildVerificationChecklist(currentChart));
     button.textContent = "已复制";
     setTimeout(() => {
       if (activeModule === "workbench") renderChart(currentChart);
@@ -2110,6 +2156,7 @@ chartView.addEventListener("change", async (event) => {
     restoreLocalBackup(data);
     currentReportDraft = "";
     renderActiveModule();
+    notify("备份已导入");
   } catch (error) {
     showError(error.message || "导入失败，请检查备份文件。");
   }
@@ -2117,7 +2164,7 @@ chartView.addEventListener("change", async (event) => {
 
 copyButton.addEventListener("click", async () => {
   if (!currentChart) return;
-  await navigator.clipboard.writeText(JSON.stringify(currentChart, null, 2));
+  await copyText(JSON.stringify(currentChart, null, 2));
   copyButton.textContent = "已复制";
   setTimeout(() => {
     copyButton.textContent = "复制排盘数据";
@@ -2159,6 +2206,7 @@ saveCaseButton.addEventListener("click", () => {
   if (activeModule === "cases") renderCasesModule();
   if (activeModule === "workbench") renderChart(currentChart);
   saveCaseButton.textContent = existing ? "已更新" : "已保存";
+  notify(existing ? "案例已更新" : "案例已保存");
   setTimeout(() => {
     saveCaseButton.textContent = "保存案例";
   }, 1200);
@@ -2176,6 +2224,7 @@ caseList.addEventListener("click", (event) => {
     if (activeCaseId === button.dataset.id) activeCaseId = "";
     renderCaseList();
     if (activeModule === "cases") renderCasesModule();
+    notify("案例已删除");
     return;
   }
 
