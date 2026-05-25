@@ -66,6 +66,13 @@ function send(res, status, body, headers = {}) {
   res.end(typeof body === "string" ? body : JSON.stringify(body));
 }
 
+function requestOrigin(req) {
+  if (req.headers.origin) return req.headers.origin;
+  const host = req.headers.host || "localhost:5173";
+  const protocol = host.includes("localhost") || host.startsWith("127.") ? "http" : "https";
+  return `${protocol}://${host}`;
+}
+
 async function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const rawPath = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
@@ -127,6 +134,26 @@ function cleanAiText(text = "") {
     .trim();
 }
 
+function sendAnalysisReply(res, payload, reply, model, extra = {}) {
+  if (payload.stream) {
+    res.writeHead(200, {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-cache",
+      "x-accel-buffering": "no",
+    });
+    res.end(reply);
+    return;
+  }
+
+  send(res, 200, {
+    analysis: reply,
+    reply,
+    model,
+    usage: null,
+    ...extra,
+  });
+}
+
 function formatPillar(pillar = {}) {
   return `${pillar.label || ""}${pillar.pillar || `${pillar.stem || ""}${pillar.branch || ""}`}（天干${pillar.stem || ""}${pillar.stemElement || ""}${pillar.stemTenGod ? `为${pillar.stemTenGod}` : ""}，地支${pillar.branch || ""}${pillar.branchElement || ""}${pillar.branchTenGod ? `为${pillar.branchTenGod}` : ""}）`;
 }
@@ -183,24 +210,14 @@ async function analyzeBazi(req, res) {
   const chartPayload = payload.chart || payload;
   if (payload.localFirst) {
     const reply = buildRuleBasedAnalysis(chartPayload);
-    send(res, 200, {
-      analysis: reply,
-      reply,
-      model: "local-rule-based",
-      usage: null,
-    });
+    sendAnalysisReply(res, payload, reply, "local-rule-based");
     return;
   }
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     const reply = `${buildRuleBasedAnalysis(chartPayload)}\n\n当前未配置在线 AI Key，以上为本地规则初析。配置后可以继续进行自由追问。`;
-    send(res, 200, {
-      analysis: reply,
-      reply,
-      model: "local-rule-based",
-      usage: null,
-    });
+    sendAnalysisReply(res, payload, reply, "local-rule-based");
     return;
   }
 
@@ -245,7 +262,7 @@ async function analyzeBazi(req, res) {
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "http://localhost:5173",
+          "HTTP-Referer": requestOrigin(req),
           "X-Title": "Bazi Chart AI Analysis",
         },
         body: JSON.stringify({ ...requestBody, model }),
@@ -268,7 +285,10 @@ async function analyzeBazi(req, res) {
   }
 
   if (!data) {
-    send(res, 502, { error: lastError || "AI服务请求失败。" });
+    const reply = `${buildRuleBasedAnalysis(chartPayload)}\n\n在线 AI 暂时不可用，已先返回本地规则初析。稍后可以继续追问，或检查 OpenRouter 配置。`;
+    sendAnalysisReply(res, payload, reply, "local-rule-based-fallback", {
+      warning: lastError || "AI服务请求失败。",
+    });
     return;
   }
   const reply = cleanAiText(data?.choices?.[0]?.message?.content || "");
