@@ -1680,6 +1680,108 @@ button:disabled {
   gap: 10px;
 }
 
+.ziwei-reading-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 10px;
+}
+
+.ziwei-reading-grid article,
+.ziwei-wide-detail article {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(23, 18, 16, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 249, 0.82);
+}
+
+.ziwei-focus-palaces,
+.ziwei-transform-map,
+.ziwei-frame-list,
+.ziwei-note-list {
+  display: grid;
+  gap: 7px;
+}
+
+.ziwei-focus-palaces {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ziwei-focus-palaces div,
+.ziwei-transform-map div,
+.ziwei-frame-line {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(115, 92, 71, 0.13);
+  border-radius: 8px;
+  padding: 9px;
+  background: rgba(247, 255, 230, 0.32);
+}
+
+.ziwei-focus-palaces strong,
+.ziwei-transform-map strong,
+.ziwei-frame-line strong {
+  font-size: 14px;
+}
+
+.ziwei-focus-palaces span,
+.ziwei-transform-map span,
+.ziwei-frame-line span,
+.ziwei-note-list span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ziwei-focus-palaces p {
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ziwei-frame-line span {
+  color: var(--ink);
+}
+
+.ziwei-star-guide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ziwei-star-guide span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(23, 18, 16, 0.14);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(255, 253, 249, 0.9);
+  font-size: 12px;
+}
+
+.ziwei-star-guide b {
+  font-weight: 900;
+}
+
+.ziwei-star-guide em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.ziwei-note-list span {
+  border-left: 3px solid var(--lime);
+  padding: 6px 8px;
+  background: rgba(216, 255, 69, 0.14);
+}
+
+.ziwei-wide-detail {
+  grid-template-columns: 1fr;
+}
+
 .ziwei-palace-list {
   display: grid;
   gap: 7px;
@@ -1706,6 +1808,16 @@ button:disabled {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.ziwei-palace-table {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ziwei-palace-table div {
+  border: 1px solid rgba(115, 92, 71, 0.12);
+  border-radius: 8px;
+  padding: 9px;
 }
 
 .workflow-steps {
@@ -2044,6 +2156,9 @@ blockquote {
   .ziwei-dashboard,
   .ziwei-actions,
   .ziwei-detail-grid,
+  .ziwei-reading-grid,
+  .ziwei-focus-palaces,
+  .ziwei-palace-table,
   .workflow-steps,
   .module-grid {
     grid-template-columns: 1fr;
@@ -2161,6 +2276,8 @@ blockquote {
   .service-queue,
   .ziwei-dashboard article,
   .ziwei-detail-grid article,
+  .ziwei-reading-grid article,
+  .ziwei-wide-detail article,
   .knowledge-grid article,
   .module-grid-panel article {
     padding: 12px;

@@ -31,6 +31,47 @@ const TEN_GOD_GROUPS = {
 const ZIWEI_BRANCHES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
 const ZIWEI_PALACE_NAMES = ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "仆役", "官禄", "田宅", "福德", "父母"];
 const ZIWEI_MAIN_STARS = ["紫微", "天机", "太阳", "武曲", "天同", "廉贞", "天府", "太阴", "贪狼", "巨门", "天相", "天梁", "七杀", "破军"];
+const ZIWEI_STAR_GUIDE = {
+  紫微: { type: "帝星", note: "主统筹、格局、号召，也看是否得辅佐。" },
+  天机: { type: "动星", note: "主思考、变化、策划，逢煞忌则多反复。" },
+  太阳: { type: "贵星", note: "主外放、名声、父缘与公共性。" },
+  武曲: { type: "财星", note: "主执行、财务、规则和硬实力。" },
+  天同: { type: "福星", note: "主安逸、人和、享受，遇忌看拖延依赖。" },
+  廉贞: { type: "囚星", note: "主边界、欲望、制度与复杂人事。" },
+  天府: { type: "库星", note: "主承载、资源、稳定和守成能力。" },
+  太阴: { type: "财星", note: "主细腻、积累、不动产和女性缘。" },
+  贪狼: { type: "桃花", note: "主欲望、才艺、应酬和资源开拓。" },
+  巨门: { type: "暗星", note: "主口舌、研究、表达和是非分辨。" },
+  天相: { type: "印星", note: "主辅助、秩序、服务和体面关系。" },
+  天梁: { type: "荫星", note: "主原则、保护、长辈和解厄能力。" },
+  七杀: { type: "将星", note: "主突破、压力、决断和环境变动。" },
+  破军: { type: "耗星", note: "主破旧立新、消耗、改造和大起伏。" },
+  左辅: { type: "辅曜", note: "主助力、团队、贵人和补位。" },
+  右弼: { type: "辅曜", note: "主助力、协调、贵人和人缘。" },
+  文昌: { type: "文曜", note: "主文书、考试、表达和条理。" },
+  文曲: { type: "文曜", note: "主才艺、表达、审美和文字。" },
+  禄存: { type: "禄曜", note: "主资源、稳定收入、保守积累。" },
+  擎羊: { type: "煞曜", note: "主冲劲、竞争、伤损和硬碰硬。" },
+  陀罗: { type: "煞曜", note: "主拖延、纠缠、慢性压力和阻滞。" },
+  天马: { type: "动曜", note: "主迁动、奔波、跨地域机会。" },
+  桃花: { type: "杂曜", note: "主社交、审美、人缘和吸引力。" },
+  天魁: { type: "贵曜", note: "主提携、转圜和上级贵人。" },
+  天钺: { type: "贵曜", note: "主提携、缓冲和女性贵人。" },
+};
+const ZIWEI_PALACE_THEMES = {
+  命宫: "人格底色、主观选择、人生起手式。",
+  兄弟: "同辈、手足、合作竞争和横向关系。",
+  夫妻: "伴侣画像、亲密关系模式和婚恋课题。",
+  子女: "子女、作品、学生、下属与创造延伸。",
+  财帛: "赚钱方式、现金流、资源调度和财务风险。",
+  疾厄: "体质倾向、压力出口、隐疾与身心消耗。",
+  迁移: "外部环境、出行迁居、异地发展和社会舞台。",
+  仆役: "朋友、客户、团队、部属和人脉质量。",
+  官禄: "事业路径、职业定位、名位与工作形态。",
+  田宅: "家庭空间、不动产、资产沉淀和安全感。",
+  福德: "精神状态、享受方式、内在稳定与福分。",
+  父母: "父母长辈、文书契约、保护力与规则资源。",
+};
 const ZIWEI_NAYIN = [
   "海中金", "海中金", "炉中火", "炉中火", "大林木", "大林木", "路旁土", "路旁土", "剑锋金", "剑锋金",
   "山头火", "山头火", "涧下水", "涧下水", "城头土", "城头土", "白蜡金", "白蜡金", "杨柳木", "杨柳木",
@@ -847,8 +888,90 @@ function buildZiweiChart(chart, payload) {
 }
 
 function renderZiweiStar(star) {
+  const guide = ZIWEI_STAR_GUIDE[star.name] || {};
   const transform = star.transform ? `<em>${star.transform}</em>` : "";
-  return `<span class="ziwei-star ${star.type}">${escapeHtml(star.name)}${transform}</span>`;
+  const title = [guide.type, guide.note].filter(Boolean).join("：");
+  return `<span class="ziwei-star ${star.type} ${guide.type ? `ziwei-star-${escapeHtml(guide.type)}` : ""}" title="${escapeHtml(title)}">${escapeHtml(star.name)}${transform}</span>`;
+}
+
+function ziweiStarLabel(star) {
+  return `${star.name}${star.transform ? `化${star.transform}` : ""}`;
+}
+
+function ziweiStarsText(palace, { mainOnly = false } = {}) {
+  const stars = mainOnly ? palace.stars.filter((star) => star.type === "main") : palace.stars;
+  return stars.map(ziweiStarLabel).join("、") || (mainOnly ? "无主星" : "无星曜");
+}
+
+function ziweiPalaceByName(ziwei, name) {
+  return Object.values(ziwei.palaces).find((palace) => palace.palace === name);
+}
+
+function ziweiOppositeBranch(branch) {
+  return ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex(branch) + 6)];
+}
+
+function ziweiSanfangBranches(branch) {
+  const start = ziweiBranchIndex(branch);
+  return [0, 4, 8].map((offset) => ZIWEI_BRANCHES[ziweiMod(start + offset)]);
+}
+
+function ziweiFramePalaces(ziwei, branch) {
+  const branches = [...ziweiSanfangBranches(branch), ziweiOppositeBranch(branch)];
+  return branches.map((item) => ziwei.palaces[item]).filter(Boolean);
+}
+
+function renderZiweiFrameLine(ziwei, title, branch) {
+  const focus = ziwei.palaces[branch];
+  if (!focus) return "";
+  const palaces = ziweiFramePalaces(ziwei, branch);
+  return `
+    <div class="ziwei-frame-line">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${palaces.map((palace) => `${palace.palace}${palace.stem}${palace.branch}：${ziweiStarsText(palace, { mainOnly: true })}`).join(" ｜ ")}</span>
+    </div>
+  `;
+}
+
+function renderZiweiTransformMap(ziwei) {
+  return ziwei.transformItems.map((item) => {
+    const palace = Object.values(ziwei.palaces).find((entry) => entry.stars.some((star) => star.name === item.star));
+    return `
+      <div>
+        <strong>${escapeHtml(item.star)}化${escapeHtml(item.name)}</strong>
+        <span>${palace ? `${escapeHtml(palace.palace)} ${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}` : "未入本盘星曜"}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderZiweiPalaceTable(ziwei) {
+  return Object.values(ziwei.palaces).map((palace) => {
+    const opposite = ziwei.palaces[ziweiOppositeBranch(palace.branch)];
+    const frameNames = ziweiFramePalaces(ziwei, palace.branch)
+      .map((item) => item.palace)
+      .join("、");
+    return `
+      <div>
+        <strong>${escapeHtml(palace.palace)} ${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</strong>
+        <span>
+          主星：${escapeHtml(ziweiStarsText(palace, { mainOnly: true }))}<br>
+          辅杂：${escapeHtml(ziweiStarsText({ ...palace, stars: palace.stars.filter((star) => star.type !== "main") }))}<br>
+          对宫：${escapeHtml(opposite?.palace || "-")}；三方四正：${escapeHtml(frameNames)}<br>
+          ${escapeHtml(ZIWEI_PALACE_THEMES[palace.palace] || "")}
+        </span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderZiweiStarGuide(ziwei) {
+  const usedStars = [...new Set(Object.values(ziwei.palaces).flatMap((palace) => palace.stars.map((star) => star.name)))]
+    .sort((a, b) => (ZIWEI_MAIN_STARS.includes(a) === ZIWEI_MAIN_STARS.includes(b) ? a.localeCompare(b, "zh-Hans-CN") : ZIWEI_MAIN_STARS.includes(a) ? -1 : 1));
+  return usedStars.map((name) => {
+    const guide = ZIWEI_STAR_GUIDE[name] || { type: "星曜", note: "需结合宫位、三方四正与四化判断。" };
+    return `<span title="${escapeHtml(guide.note)}"><b>${escapeHtml(name)}</b><em>${escapeHtml(guide.type)}</em></span>`;
+  }).join("");
 }
 
 function renderZiweiPalace(palace) {
@@ -871,13 +994,16 @@ function renderZiweiPalace(palace) {
 function buildZiweiSummaryText(ziwei, chart) {
   const ming = ziwei.palaces[ziwei.mingBranch];
   const shen = ziwei.palaces[ziwei.shenBranch];
-  const starLine = (palace) => palace.stars.map((star) => `${star.name}${star.transform ? `化${star.transform}` : ""}`).join("、") || "无主星";
+  const wealth = ziweiPalaceByName(ziwei, "财帛");
+  const career = ziweiPalaceByName(ziwei, "官禄");
+  const travel = ziweiPalaceByName(ziwei, "迁移");
   return [
     `姓名：${chart.input.name || "-"}`,
     `四柱：${chartSignature(chart)}`,
     `农历：${ziwei.lunar.text} ${ziwei.lunar.time}（${ziwei.hourBranch}时）`,
-    `命宫：${ming.stem}${ming.branch} ${ming.palace}，${starLine(ming)}`,
-    `身宫：${shen.stem}${shen.branch} ${shen.palace}，${starLine(shen)}`,
+    `命宫：${ming.stem}${ming.branch} ${ming.palace}，${ziweiStarsText(ming)}`,
+    `身宫：${shen.stem}${shen.branch} ${shen.palace}，${ziweiStarsText(shen)}`,
+    `命财官迁：命宫${ziweiStarsText(ming, { mainOnly: true })}；财帛${wealth ? ziweiStarsText(wealth, { mainOnly: true }) : "-"}；官禄${career ? ziweiStarsText(career, { mainOnly: true }) : "-"}；迁移${travel ? ziweiStarsText(travel, { mainOnly: true }) : "-"}`,
     `五行局：${ziwei.bureau.label}，大限${ziwei.direction}`,
     `命主：${ziwei.lifeMaster}，身主：${ziwei.bodyMaster}`,
     `四化：${ziwei.transformItems.map((item) => `${item.star}化${item.name}`).join("、")}`,
@@ -909,20 +1035,24 @@ function renderZiweiModule() {
   const palaces = Object.values(ziwei.palaces);
   const ming = ziwei.palaces[ziwei.mingBranch];
   const shen = ziwei.palaces[ziwei.shenBranch];
+  const wealth = ziweiPalaceByName(ziwei, "财帛");
+  const career = ziweiPalaceByName(ziwei, "官禄");
+  const travel = ziweiPalaceByName(ziwei, "迁移");
   const activePalaces = palaces
     .filter((palace) => palace.stars.some((star) => ZIWEI_MAIN_STARS.includes(star.name)))
     .slice(0, 6);
+  const frameFocus = [ming, wealth, career, travel].filter(Boolean);
   const content = `
     <section class="ziwei-dashboard">
       <article>
         <span>命宫</span>
         <strong>${escapeHtml(ming.stem)}${escapeHtml(ming.branch)} ${escapeHtml(ming.palace)}</strong>
-        <p>${ming.stars.map((star) => star.name).slice(0, 4).join("、") || "无主星，重借对宫与三方四正。"}</p>
+        <p>${escapeHtml(ziweiStarsText(ming).replace("无星曜", "无主星，重借对宫与三方四正。"))}</p>
       </article>
       <article>
         <span>身宫</span>
         <strong>${escapeHtml(shen.stem)}${escapeHtml(shen.branch)} ${escapeHtml(shen.palace)}</strong>
-        <p>${shen.stars.map((star) => star.name).slice(0, 4).join("、") || "需结合命宫与迁移宫观察。"}</p>
+        <p>${escapeHtml(ziweiStarsText(shen).replace("无星曜", "需结合命宫与迁移宫观察。"))}</p>
       </article>
       <article>
         <span>五行局</span>
@@ -951,6 +1081,51 @@ function renderZiweiModule() {
         </div>
       </div>
     </section>
+    <section class="ziwei-reading-grid">
+      <article>
+        <div class="panel-heading">
+          <h2>命财官迁</h2>
+          <span>三方四正</span>
+        </div>
+        <div class="ziwei-focus-palaces">
+          ${frameFocus.map((palace) => `
+            <div>
+              <strong>${escapeHtml(palace.palace)} ${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</strong>
+              <span>${escapeHtml(ziweiStarsText(palace, { mainOnly: true }))}</span>
+              <p>${escapeHtml(ZIWEI_PALACE_THEMES[palace.palace] || "")}</p>
+            </div>
+          `).join("")}
+        </div>
+      </article>
+      <article>
+        <div class="panel-heading">
+          <h2>四化落宫</h2>
+          <span>${escapeHtml(ziwei.lunar.year)}年干</span>
+        </div>
+        <div class="ziwei-transform-map">
+          ${renderZiweiTransformMap(ziwei)}
+        </div>
+      </article>
+    </section>
+    <section class="ziwei-reading-grid">
+      <article>
+        <div class="panel-heading">
+          <h2>核心参照</h2>
+          <span>借星路径</span>
+        </div>
+        <div class="ziwei-frame-list">
+          ${renderZiweiFrameLine(ziwei, "命宫三方四正", ming.branch)}
+          ${renderZiweiFrameLine(ziwei, "身宫三方四正", shen.branch)}
+        </div>
+      </article>
+      <article>
+        <div class="panel-heading">
+          <h2>星曜图例</h2>
+          <span>本盘出现</span>
+        </div>
+        <div class="ziwei-star-guide">${renderZiweiStarGuide(ziwei)}</div>
+      </article>
+    </section>
     <section class="ziwei-detail-grid">
       <article>
         <div class="panel-heading">
@@ -968,10 +1143,27 @@ function renderZiweiModule() {
       </article>
       <article>
         <div class="panel-heading">
-          <h2>排盘说明</h2>
-          <span>基础版</span>
+          <h2>看盘顺序</h2>
+          <span>建议</span>
+        </div>
+        <div class="ziwei-note-list">
+          <span>先看命宫与迁移，定内外环境。</span>
+          <span>再看财帛与官禄，定做事方式和资源入口。</span>
+          <span>四化看触发点，化忌所在要先做核验。</span>
+          <span>无主星宫位重点借对宫与三方四正。</span>
         </div>
         <p>${escapeHtml(ziwei.note)}</p>
+      </article>
+    </section>
+    <section class="ziwei-detail-grid ziwei-wide-detail">
+      <article>
+        <div class="panel-heading">
+          <h2>十二宫详表</h2>
+          <span>对宫与三方</span>
+        </div>
+        <div class="ziwei-palace-list ziwei-palace-table">
+          ${renderZiweiPalaceTable(ziwei)}
+        </div>
       </article>
     </section>
   `;
