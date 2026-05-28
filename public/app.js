@@ -28,6 +28,36 @@ const TEN_GOD_GROUPS = {
   官杀: ["正官", "七杀"],
   印星: ["正印", "偏印"],
 };
+const ZIWEI_BRANCHES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+const ZIWEI_PALACE_NAMES = ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "交友", "官禄", "田宅", "福德", "父母"];
+const ZIWEI_MAIN_STARS = ["紫微", "天机", "太阳", "武曲", "天同", "廉贞", "天府", "太阴", "贪狼", "巨门", "天相", "天梁", "七杀", "破军"];
+const ZIWEI_NAYIN = [
+  "海中金", "海中金", "炉中火", "炉中火", "大林木", "大林木", "路旁土", "路旁土", "剑锋金", "剑锋金",
+  "山头火", "山头火", "涧下水", "涧下水", "城头土", "城头土", "白蜡金", "白蜡金", "杨柳木", "杨柳木",
+  "泉中水", "泉中水", "屋上土", "屋上土", "霹雳火", "霹雳火", "松柏木", "松柏木", "长流水", "长流水",
+  "砂中金", "砂中金", "山下火", "山下火", "平地木", "平地木", "壁上土", "壁上土", "金箔金", "金箔金",
+  "覆灯火", "覆灯火", "天河水", "天河水", "大驿土", "大驿土", "钗钏金", "钗钏金", "桑柘木", "桑柘木",
+  "大溪水", "大溪水", "沙中土", "沙中土", "天上火", "天上火", "石榴木", "石榴木", "大海水", "大海水",
+];
+const ZIWEI_TRANSFORMS = {
+  甲: { 禄: "廉贞", 权: "破军", 科: "武曲", 忌: "太阳" },
+  乙: { 禄: "天机", 权: "天梁", 科: "紫微", 忌: "太阴" },
+  丙: { 禄: "天同", 权: "天机", 科: "文昌", 忌: "廉贞" },
+  丁: { 禄: "太阴", 权: "天同", 科: "天机", 忌: "巨门" },
+  戊: { 禄: "贪狼", 权: "太阴", 科: "右弼", 忌: "天机" },
+  己: { 禄: "武曲", 权: "贪狼", 科: "天梁", 忌: "文曲" },
+  庚: { 禄: "太阳", 权: "武曲", 科: "太阴", 忌: "天同" },
+  辛: { 禄: "巨门", 权: "太阳", 科: "文曲", 忌: "文昌" },
+  壬: { 禄: "天梁", 权: "紫微", 科: "左辅", 忌: "武曲" },
+  癸: { 禄: "破军", 权: "巨门", 科: "太阴", 忌: "贪狼" },
+};
+const ZIWEI_LUCUN = { 甲: "寅", 乙: "卯", 丙: "巳", 丁: "午", 戊: "巳", 己: "午", 庚: "申", 辛: "酉", 壬: "亥", 癸: "子" };
+const ZIWEI_GRID_AREAS = {
+  巳: "1 / 1", 午: "1 / 2", 未: "1 / 3", 申: "1 / 4",
+  辰: "2 / 1", 酉: "2 / 4",
+  卯: "3 / 1", 戌: "3 / 4",
+  寅: "4 / 1", 丑: "4 / 2", 子: "4 / 3", 亥: "4 / 4",
+};
 const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   year: "numeric",
   month: "numeric",
@@ -567,6 +597,326 @@ function coloredHiddenStems(hiddenStems) {
 
 function coloredNayin(nayin) {
   return `<span class="${elementClass(elementFromNayin(nayin))}">${nayin}</span>`;
+}
+
+function ziweiMod(n, m = 12) {
+  return ((n % m) + m) % m;
+}
+
+function ziweiBranchIndex(branch) {
+  return ZIWEI_BRANCHES.indexOf(branch);
+}
+
+function hourBranchFromTime(time = "00:00") {
+  const [hour] = String(time || "00:00").split(":").map(Number);
+  return ZIWEI_BRANCHES[Math.floor(((Number(hour) || 0) + 1) / 2) % 12];
+}
+
+function ganzhiIndex(stem, branch) {
+  const stems = baziMeta.STEMS.map((item) => item.char);
+  const stemIndex = stems.indexOf(stem);
+  const branchIndex = ziweiBranchIndex(branch);
+  if (stemIndex < 0 || branchIndex < 0) return -1;
+  for (let index = 0; index < 60; index += 1) {
+    if (index % 10 === stemIndex && index % 12 === branchIndex) return index;
+  }
+  return -1;
+}
+
+function ziweiNayin(stem, branch) {
+  const index = ganzhiIndex(stem, branch);
+  return index >= 0 ? ZIWEI_NAYIN[index] : "";
+}
+
+function ziweiBureauFromNayin(nayin = "") {
+  const element = elementFromNayin(nayin);
+  const numbers = { 水: 2, 木: 3, 金: 4, 土: 5, 火: 6 };
+  return {
+    element,
+    number: numbers[element] || 2,
+    label: element ? `${element}${numbers[element]}局` : "水二局",
+  };
+}
+
+function ziweiLunarBirth(payload) {
+  if (payload.dateMode === "lunar") {
+    return {
+      year: payload.lunarYear,
+      month: payload.lunarMonth,
+      day: payload.lunarDay,
+      isLeap: payload.lunarLeap,
+      time: payload.lunarTime || payload.birthDatetime?.slice(11, 16) || "00:00",
+      text: `${payload.lunarYear}年${payload.lunarLeap ? "闰" : ""}${payload.lunarMonth}月${payload.lunarDay}`,
+    };
+  }
+  const { year, month, day, hour, minute } = parseDateTime(payload.birthDatetime);
+  const lunar = solarDateToLunarParts(new Date(year, month - 1, day, hour, minute || 0));
+  return {
+    ...lunar,
+    time: `${pad2(hour)}:${pad2(minute || 0)}`,
+  };
+}
+
+function palaceStemByYearStem(yearStem, branch) {
+  const stems = baziMeta.STEMS.map((item) => item.char);
+  const startStemByYear = { 甲: "丙", 己: "丙", 乙: "戊", 庚: "戊", 丙: "庚", 辛: "庚", 丁: "壬", 壬: "壬", 戊: "甲", 癸: "甲" };
+  const startStem = startStemByYear[yearStem] || "丙";
+  const startIndex = stems.indexOf(startStem);
+  const branchOffset = ziweiMod(ziweiBranchIndex(branch) - ziweiBranchIndex("寅"));
+  return stems[(startIndex + branchOffset) % 10];
+}
+
+function addZiweiStar(palaces, branch, name, type = "minor") {
+  const palace = palaces[branch];
+  if (!palace) return;
+  const transform = Object.entries(palace.transforms || {}).find(([, star]) => star === name)?.[0] || "";
+  palace.stars.push({ name, type, transform });
+}
+
+function addZiweiStarsByOffsets(palaces, startIndex, stars, direction = 1) {
+  stars.forEach(([offset, name]) => {
+    const branch = ZIWEI_BRANCHES[ziweiMod(startIndex + direction * offset)];
+    addZiweiStar(palaces, branch, name, "main");
+  });
+}
+
+function estimateZiweiIndex(lunarDay, bureauNumber) {
+  const base = ziweiBranchIndex("寅");
+  const quotient = Math.ceil(lunarDay / bureauNumber) - 1;
+  const remainder = lunarDay % bureauNumber;
+  const adjust = remainder === 0 ? 0 : bureauNumber - remainder;
+  const signedAdjust = adjust % 2 === 0 ? -adjust : adjust;
+  return ziweiMod(base + quotient + signedAdjust);
+}
+
+function buildZiweiChart(chart, payload) {
+  const lunar = ziweiLunarBirth(payload);
+  const hourBranch = hourBranchFromTime(lunar.time);
+  const yearStem = chart.pillars.year.stem;
+  const yearBranch = chart.pillars.year.branch;
+  const yearPolarity = baziMeta.STEMS.find((item) => item.char === yearStem)?.polarity || "阳";
+  const gender = chart.input.gender;
+  const monthStart = ziweiMod(ziweiBranchIndex("寅") + Number(lunar.month || 1) - 1);
+  const hourIndex = ziweiBranchIndex(hourBranch);
+  const mingIndex = ziweiMod(monthStart - hourIndex);
+  const shenIndex = ziweiMod(monthStart + hourIndex);
+  const mingBranch = ZIWEI_BRANCHES[mingIndex];
+  const shenBranch = ZIWEI_BRANCHES[shenIndex];
+  const palaces = Object.fromEntries(ZIWEI_BRANCHES.map((branch) => {
+    const stem = palaceStemByYearStem(yearStem, branch);
+    const nayin = ziweiNayin(stem, branch);
+    return [branch, {
+      branch,
+      stem,
+      nayin,
+      palace: "",
+      stars: [],
+      transforms: ZIWEI_TRANSFORMS[yearStem] || {},
+      decade: "",
+      markers: [],
+    }];
+  }));
+
+  ZIWEI_PALACE_NAMES.forEach((name, offset) => {
+    const branch = ZIWEI_BRANCHES[ziweiMod(mingIndex - offset)];
+    palaces[branch].palace = name;
+  });
+  palaces[mingBranch].markers.push("命");
+  palaces[shenBranch].markers.push("身");
+
+  const bureau = ziweiBureauFromNayin(palaces[mingBranch].nayin);
+  const ziweiIndex = estimateZiweiIndex(Number(lunar.day || 1), bureau.number);
+  const tianfuIndex = ziweiMod(4 - ziweiIndex);
+  addZiweiStarsByOffsets(palaces, ziweiIndex, [[0, "紫微"], [1, "天机"], [3, "太阳"], [4, "武曲"], [5, "天同"], [8, "廉贞"]], -1);
+  addZiweiStarsByOffsets(palaces, tianfuIndex, [[0, "天府"], [1, "太阴"], [2, "贪狼"], [3, "巨门"], [4, "天相"], [5, "天梁"], [6, "七杀"], [10, "破军"]], 1);
+
+  const month = Number(lunar.month || 1);
+  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("辰") + month - 1)], "左辅");
+  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("戌") - month + 1)], "右弼");
+  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("戌") - hourIndex)], "文昌");
+  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("辰") + hourIndex)], "文曲");
+
+  const lucunBranch = ZIWEI_LUCUN[yearStem];
+  if (lucunBranch) {
+    const lucunIndex = ziweiBranchIndex(lucunBranch);
+    addZiweiStar(palaces, lucunBranch, "禄存");
+    addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(lucunIndex + 1)], "擎羊", "malefic");
+    addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(lucunIndex - 1)], "陀罗", "malefic");
+  }
+
+  const nobleMap = {
+    甲: ["丑", "未"], 戊: ["丑", "未"], 庚: ["丑", "未"],
+    乙: ["子", "申"], 己: ["子", "申"],
+    丙: ["亥", "酉"], 丁: ["亥", "酉"],
+    辛: ["午", "寅"],
+    壬: ["卯", "巳"], 癸: ["卯", "巳"],
+  };
+  const nobles = nobleMap[yearStem] || [];
+  if (nobles[0]) addZiweiStar(palaces, nobles[0], "天魁");
+  if (nobles[1]) addZiweiStar(palaces, nobles[1], "天钺");
+
+  const groupStar = (groups) => Object.entries(groups).find(([branches]) => branches.includes(yearBranch))?.[1] || "";
+  const horse = groupStar({ "申子辰": "寅", "寅午戌": "申", "巳酉丑": "亥", "亥卯未": "巳" });
+  const peach = groupStar({ "申子辰": "酉", "寅午戌": "卯", "巳酉丑": "午", "亥卯未": "子" });
+  if (horse) addZiweiStar(palaces, horse, "天马");
+  if (peach) addZiweiStar(palaces, peach, "桃花");
+
+  const isForward = (gender === "male" && yearPolarity === "阳") || (gender === "female" && yearPolarity === "阴");
+  ZIWEI_PALACE_NAMES.forEach((name, offset) => {
+    const branch = ZIWEI_BRANCHES[ziweiMod(mingIndex + (isForward ? offset : -offset))];
+    const start = bureau.number + offset * 10;
+    palaces[branch].decade = `${start}-${start + 9}`;
+  });
+
+  const lifeMasterMap = { 子: "贪狼", 丑: "巨门", 寅: "禄存", 卯: "文曲", 辰: "廉贞", 巳: "武曲", 午: "破军", 未: "武曲", 申: "廉贞", 酉: "文曲", 戌: "禄存", 亥: "巨门" };
+  const bodyMasterMap = { 子: "火星", 丑: "天相", 寅: "天梁", 卯: "天同", 辰: "文昌", 巳: "天机", 午: "火星", 未: "天相", 申: "天梁", 酉: "天同", 戌: "文昌", 亥: "天机" };
+  const transformItems = Object.entries(ZIWEI_TRANSFORMS[yearStem] || {}).map(([name, star]) => ({ name, star }));
+
+  return {
+    lunar,
+    hourBranch,
+    mingBranch,
+    shenBranch,
+    bureau,
+    palaces,
+    transformItems,
+    direction: isForward ? "顺行" : "逆行",
+    lifeMaster: lifeMasterMap[mingBranch] || "-",
+    bodyMaster: bodyMasterMap[yearBranch] || "-",
+    note: "紫微斗数板块为基础排盘版：命身宫、十二宫、主星辅星、四化与大限按常用规则生成；不同软件和流派在闰月、真太阳时、星曜细则上可能存在差异，正式咨询需人工复核。",
+  };
+}
+
+function renderZiweiStar(star) {
+  const transform = star.transform ? `<em>${star.transform}</em>` : "";
+  return `<span class="ziwei-star ${star.type}">${escapeHtml(star.name)}${transform}</span>`;
+}
+
+function renderZiweiPalace(palace) {
+  const mainStars = palace.stars.filter((star) => star.type === "main");
+  const otherStars = palace.stars.filter((star) => star.type !== "main");
+  return `
+    <article class="ziwei-palace" style="grid-area: ${ZIWEI_GRID_AREAS[palace.branch]};">
+      <div class="ziwei-palace-head">
+        <strong>${escapeHtml(palace.palace || "-")}</strong>
+        <span>${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</span>
+      </div>
+      <div class="ziwei-markers">${palace.markers.map((item) => `<i>${item}</i>`).join("")}</div>
+      <div class="ziwei-main-stars">${mainStars.length ? mainStars.map(renderZiweiStar).join("") : "<small>无主星</small>"}</div>
+      <div class="ziwei-minor-stars">${otherStars.map(renderZiweiStar).join("")}</div>
+      <footer><span>${escapeHtml(palace.decade || "-")}岁</span><span>${escapeHtml(palace.nayin)}</span></footer>
+    </article>
+  `;
+}
+
+function buildZiweiSummaryText(ziwei, chart) {
+  const ming = ziwei.palaces[ziwei.mingBranch];
+  const shen = ziwei.palaces[ziwei.shenBranch];
+  const starLine = (palace) => palace.stars.map((star) => `${star.name}${star.transform ? `化${star.transform}` : ""}`).join("、") || "无主星";
+  return [
+    `姓名：${chart.input.name || "-"}`,
+    `四柱：${chartSignature(chart)}`,
+    `农历：${ziwei.lunar.text} ${ziwei.lunar.time}（${ziwei.hourBranch}时）`,
+    `命宫：${ming.stem}${ming.branch} ${ming.palace}，${starLine(ming)}`,
+    `身宫：${shen.stem}${shen.branch} ${shen.palace}，${starLine(shen)}`,
+    `五行局：${ziwei.bureau.label}，大限${ziwei.direction}`,
+    `命主：${ziwei.lifeMaster}，身主：${ziwei.bodyMaster}`,
+    `四化：${ziwei.transformItems.map((item) => `${item.star}化${item.name}`).join("、")}`,
+    ziwei.note,
+  ].join("\n");
+}
+
+function renderZiweiModule() {
+  if (!currentChart) {
+    const content = `
+      <section class="module-card ziwei-empty-card">
+        <div>
+          <span class="eyebrow">紫微斗数</span>
+          <h2>先排一张命盘，再展开紫微十二宫</h2>
+          <p>紫微斗数需要出生日期、农历月份日期和时辰。可以直接使用左侧资料排盘，或先加载示例盘查看版式。</p>
+        </div>
+        <div class="report-actions">
+          <button type="button" data-action="use-demo-chart">先看示例盘</button>
+          <button class="secondary" type="button" data-action="use-current-chart">用当前时间排盘</button>
+        </div>
+      </section>
+    `;
+    renderModuleShell("紫微斗数", "参考测测、文墨天机一类产品的阅读方式，先提供清晰的十二宫盘和咨询速览。", content);
+    return;
+  }
+
+  const payload = getFormPayload();
+  const ziwei = buildZiweiChart(currentChart, payload);
+  const palaces = Object.values(ziwei.palaces);
+  const ming = ziwei.palaces[ziwei.mingBranch];
+  const shen = ziwei.palaces[ziwei.shenBranch];
+  const activePalaces = palaces
+    .filter((palace) => palace.stars.some((star) => ZIWEI_MAIN_STARS.includes(star.name)))
+    .slice(0, 6);
+  const content = `
+    <section class="ziwei-dashboard">
+      <article>
+        <span>命宫</span>
+        <strong>${escapeHtml(ming.stem)}${escapeHtml(ming.branch)} ${escapeHtml(ming.palace)}</strong>
+        <p>${ming.stars.map((star) => star.name).slice(0, 4).join("、") || "无主星，重借对宫与三方四正。"}</p>
+      </article>
+      <article>
+        <span>身宫</span>
+        <strong>${escapeHtml(shen.stem)}${escapeHtml(shen.branch)} ${escapeHtml(shen.palace)}</strong>
+        <p>${shen.stars.map((star) => star.name).slice(0, 4).join("、") || "需结合命宫与迁移宫观察。"}</p>
+      </article>
+      <article>
+        <span>五行局</span>
+        <strong>${escapeHtml(ziwei.bureau.label)}</strong>
+        <p>大限${escapeHtml(ziwei.direction)}，命主${escapeHtml(ziwei.lifeMaster)}，身主${escapeHtml(ziwei.bodyMaster)}。</p>
+      </article>
+      <article>
+        <span>出生</span>
+        <strong>${escapeHtml(ziwei.lunar.text)} ${escapeHtml(ziwei.hourBranch)}时</strong>
+        <p>${escapeHtml(currentChart.solarTime.birthLocal)}</p>
+      </article>
+    </section>
+    <section class="ziwei-actions">
+      <button type="button" data-action="copy-ziwei-summary">复制紫微摘要</button>
+      <button class="secondary" type="button" data-action="save-case-inline">保存为案例</button>
+      <button class="secondary" type="button" data-action="go-cases">查看案例库</button>
+    </section>
+    <section class="ziwei-board-wrap">
+      <div class="ziwei-board">
+        ${palaces.map(renderZiweiPalace).join("")}
+        <div class="ziwei-center">
+          <span class="eyebrow">紫微斗数</span>
+          <strong>${escapeHtml(chartSignature(currentChart))}</strong>
+          <p>${escapeHtml(ziwei.bureau.label)} · ${escapeHtml(ziwei.direction)}</p>
+          <div>${ziwei.transformItems.map((item) => `<span>${escapeHtml(item.star)}化${escapeHtml(item.name)}</span>`).join("")}</div>
+        </div>
+      </div>
+    </section>
+    <section class="ziwei-detail-grid">
+      <article>
+        <div class="panel-heading">
+          <h2>宫位速览</h2>
+          <span>主星宫</span>
+        </div>
+        <div class="ziwei-palace-list">
+          ${activePalaces.map((palace) => `
+            <div>
+              <strong>${escapeHtml(palace.palace)} ${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</strong>
+              <span>${palace.stars.filter((star) => star.type === "main").map((star) => `${star.name}${star.transform ? `化${star.transform}` : ""}`).join("、")}</span>
+            </div>
+          `).join("")}
+        </div>
+      </article>
+      <article>
+        <div class="panel-heading">
+          <h2>排盘说明</h2>
+          <span>基础版</span>
+        </div>
+        <p>${escapeHtml(ziwei.note)}</p>
+      </article>
+    </section>
+  `;
+  renderModuleShell("紫微斗数", "十二宫盘、命身宫、四化、大限与星曜速览，适合作为八字之外的第二套咨询视角。", content);
 }
 
 function flowAsColumn(item, label, extra = "") {
@@ -1527,6 +1877,7 @@ function renderWorkbench() {
 function renderActiveModule() {
   updateNav();
   if (activeModule === "workbench") renderWorkbench();
+  if (activeModule === "ziwei") renderZiweiModule();
   if (activeModule === "cases") renderCasesModule();
   if (activeModule === "reports") renderReportsModule();
   if (activeModule === "knowledge") renderKnowledgeModule();
@@ -2084,6 +2435,16 @@ chartView.addEventListener("click", async (event) => {
 
   if (button.dataset.action === "go-cases") {
     setActiveModule("cases");
+    return;
+  }
+
+  if (button.dataset.action === "copy-ziwei-summary") {
+    const ziwei = buildZiweiChart(currentChart, getFormPayload());
+    await copyText(buildZiweiSummaryText(ziwei, currentChart));
+    button.textContent = "已复制";
+    setTimeout(() => {
+      if (activeModule === "ziwei") renderZiweiModule();
+    }, 900);
     return;
   }
 

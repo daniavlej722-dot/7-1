@@ -1468,6 +1468,246 @@ button:disabled {
   background: rgba(255, 253, 249, 0.78);
 }
 
+.ziwei-empty-card {
+  grid-template-columns: 1.4fr 0.8fr;
+  align-items: center;
+}
+
+.ziwei-empty-card h2 {
+  margin: 4px 0 6px;
+  font-size: clamp(25px, 2.3vw, 36px);
+}
+
+.ziwei-dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ziwei-dashboard article,
+.ziwei-detail-grid article {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(23, 18, 16, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 249, 0.82);
+}
+
+.ziwei-dashboard article > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ziwei-dashboard strong {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.ziwei-dashboard p,
+.ziwei-detail-grid p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ziwei-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.ziwei-board-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(23, 18, 16, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 253, 249, 0.72);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ziwei-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  grid-template-rows: repeat(4, minmax(132px, auto));
+  gap: 8px;
+  min-width: 760px;
+}
+
+.ziwei-palace {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(23, 18, 16, 0.22);
+  border-radius: 8px;
+  padding: 9px;
+  background: rgba(255, 253, 249, 0.9);
+}
+
+.ziwei-palace-head,
+.ziwei-palace footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ziwei-palace-head strong {
+  font-size: 15px;
+}
+
+.ziwei-palace-head span,
+.ziwei-palace footer {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ziwei-markers {
+  display: flex;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.ziwei-markers i {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--lime);
+  color: var(--ink);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.ziwei-main-stars,
+.ziwei-minor-stars {
+  display: flex;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ziwei-main-stars small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ziwei-star {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(23, 18, 16, 0.16);
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgba(247, 255, 230, 0.7);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ziwei-star.main {
+  border-color: rgba(23, 18, 16, 0.34);
+  background: rgba(216, 255, 69, 0.28);
+}
+
+.ziwei-star.malefic {
+  background: rgba(255, 59, 34, 0.08);
+  color: var(--red);
+}
+
+.ziwei-star em {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fffaf1;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.ziwei-center {
+  grid-area: 2 / 2 / 4 / 4;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 220px;
+  border: 1px solid rgba(23, 18, 16, 0.24);
+  border-radius: 10px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(216, 255, 69, 0.26), rgba(110, 231, 242, 0.16), rgba(255, 253, 249, 0.92));
+  text-align: center;
+}
+
+.ziwei-center strong {
+  font-size: clamp(22px, 2.4vw, 32px);
+  line-height: 1.15;
+}
+
+.ziwei-center p {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.ziwei-center div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+}
+
+.ziwei-center div span {
+  border: 1px solid rgba(23, 18, 16, 0.16);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(255, 253, 249, 0.78);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ziwei-detail-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 10px;
+}
+
+.ziwei-palace-list {
+  display: grid;
+  gap: 7px;
+}
+
+.ziwei-palace-list div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.45fr) 1fr;
+  gap: 8px;
+  border-bottom: 1px solid rgba(115, 92, 71, 0.12);
+  padding-bottom: 7px;
+}
+
+.ziwei-palace-list div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ziwei-palace-list strong {
+  font-size: 14px;
+}
+
+.ziwei-palace-list span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .workflow-steps {
   display: flex;
   flex-wrap: wrap;
@@ -1800,6 +2040,10 @@ blockquote {
   .settings-form,
   .knowledge-grid,
   .module-grid-panel,
+  .ziwei-empty-card,
+  .ziwei-dashboard,
+  .ziwei-actions,
+  .ziwei-detail-grid,
   .workflow-steps,
   .module-grid {
     grid-template-columns: 1fr;
@@ -1915,9 +2159,20 @@ blockquote {
   .module-hero,
   .module-card,
   .service-queue,
+  .ziwei-dashboard article,
+  .ziwei-detail-grid article,
   .knowledge-grid article,
   .module-grid-panel article {
     padding: 12px;
+  }
+
+  .ziwei-board {
+    min-width: 720px;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+  }
+
+  .ziwei-center {
+    min-height: 200px;
   }
 
   .workflow-steps,
