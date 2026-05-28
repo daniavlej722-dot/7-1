@@ -127,6 +127,7 @@ let selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
 let aiState = "idle";
 let aiMessages = [];
 let activeModule = "workbench";
+let selectedZiweiBranch = "";
 let currentReportDraft = "";
 let caseQuery = "";
 let activeCaseId = "";
@@ -148,6 +149,7 @@ function openChartFromPayload(payload, { caseId = "", focus = true } = {}) {
   setFormPayload(payload);
   currentChart = chartFromPayload(payload);
   selection = { luckIndex: 0, yearIndex: 0, monthIndex: 0 };
+  selectedZiweiBranch = "";
   aiState = "idle";
   aiMessages = [];
   activeCaseId = caseId;
@@ -921,6 +923,17 @@ function ziweiFramePalaces(ziwei, branch) {
   return branches.map((item) => ziwei.palaces[item]).filter(Boolean);
 }
 
+function ziweiFrameBranchSet(branch) {
+  return new Set([...ziweiSanfangBranches(branch), ziweiOppositeBranch(branch)]);
+}
+
+function ziweiPalaceRelation(selectedBranch, branch) {
+  if (selectedBranch === branch) return "本宫";
+  if (ziweiOppositeBranch(selectedBranch) === branch) return "对宫";
+  if (ziweiSanfangBranches(selectedBranch).includes(branch)) return "三方";
+  return "";
+}
+
 function renderZiweiFrameLine(ziwei, title, branch) {
   const focus = ziwei.palaces[branch];
   if (!focus) return "";
@@ -945,22 +958,24 @@ function renderZiweiTransformMap(ziwei) {
   }).join("");
 }
 
-function renderZiweiPalaceTable(ziwei) {
+function renderZiweiPalaceTable(ziwei, selectedBranch) {
   return Object.values(ziwei.palaces).map((palace) => {
     const opposite = ziwei.palaces[ziweiOppositeBranch(palace.branch)];
     const frameNames = ziweiFramePalaces(ziwei, palace.branch)
       .map((item) => item.palace)
       .join("、");
+    const relation = ziweiPalaceRelation(selectedBranch, palace.branch);
     return `
-      <div>
+      <button type="button" class="${relation ? "is-related" : ""}" data-action="select-ziwei-palace" data-branch="${escapeHtml(palace.branch)}">
         <strong>${escapeHtml(palace.palace)} ${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</strong>
+        ${relation ? `<em>${escapeHtml(relation)}</em>` : ""}
         <span>
           主星：${escapeHtml(ziweiStarsText(palace, { mainOnly: true }))}<br>
           辅杂：${escapeHtml(ziweiStarsText({ ...palace, stars: palace.stars.filter((star) => star.type !== "main") }))}<br>
           对宫：${escapeHtml(opposite?.palace || "-")}；三方四正：${escapeHtml(frameNames)}<br>
           ${escapeHtml(ZIWEI_PALACE_THEMES[palace.palace] || "")}
         </span>
-      </div>
+      </button>
     `;
   }).join("");
 }
@@ -974,20 +989,77 @@ function renderZiweiStarGuide(ziwei) {
   }).join("");
 }
 
-function renderZiweiPalace(palace) {
+function renderZiweiPalace(palace, selectedBranch) {
   const mainStars = palace.stars.filter((star) => star.type === "main");
   const otherStars = palace.stars.filter((star) => star.type !== "main");
+  const relation = ziweiPalaceRelation(selectedBranch, palace.branch);
+  const relationClass = relation === "本宫" ? "is-selected" : relation ? "is-frame" : "";
   return `
-    <article class="ziwei-palace" style="grid-area: ${ZIWEI_GRID_AREAS[palace.branch]};">
+    <button type="button" class="ziwei-palace ${relationClass}" data-action="select-ziwei-palace" data-branch="${escapeHtml(palace.branch)}" style="grid-area: ${ZIWEI_GRID_AREAS[palace.branch]};">
       <div class="ziwei-palace-head">
         <strong>${escapeHtml(palace.palace || "-")}</strong>
-        <span>${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</span>
+        <span>${escapeHtml(relation || `${palace.stem}${palace.branch}`)}</span>
       </div>
       <div class="ziwei-markers">${palace.markers.map((item) => `<i>${item}</i>`).join("")}</div>
       <div class="ziwei-main-stars">${mainStars.length ? mainStars.map(renderZiweiStar).join("") : "<small>无主星</small>"}</div>
       <div class="ziwei-minor-stars">${otherStars.map(renderZiweiStar).join("")}</div>
       <footer><span>${escapeHtml(palace.decade || "-")}岁</span><span>${escapeHtml(palace.nayin)}</span></footer>
-    </article>
+    </button>
+  `;
+}
+
+function renderZiweiSelectedPalace(ziwei, selectedBranch) {
+  const palace = ziwei.palaces[selectedBranch] || ziwei.palaces[ziwei.mingBranch];
+  const opposite = ziwei.palaces[ziweiOppositeBranch(palace.branch)];
+  const sanfang = ziweiSanfangBranches(palace.branch)
+    .filter((branch) => branch !== palace.branch)
+    .map((branch) => ziwei.palaces[branch])
+    .filter(Boolean);
+  const transforms = palace.stars
+    .filter((star) => star.transform)
+    .map((star) => `${star.name}化${star.transform}`)
+    .join("、") || "本宫无年干四化星";
+  return `
+    <section class="ziwei-selected-panel">
+      <article>
+        <div class="panel-heading">
+          <h2>${escapeHtml(palace.palace)}详解</h2>
+          <span>${escapeHtml(palace.stem)}${escapeHtml(palace.branch)} · ${escapeHtml(palace.decade)}岁</span>
+        </div>
+        <div class="ziwei-selected-main">
+          <strong>${escapeHtml(ziweiStarsText(palace, { mainOnly: true }))}</strong>
+          <span>${escapeHtml(ziweiStarsText({ ...palace, stars: palace.stars.filter((star) => star.type !== "main") }))}</span>
+          <p>${escapeHtml(ZIWEI_PALACE_THEMES[palace.palace] || "此宫需结合本宫、对宫与三方四正共同判断。")}</p>
+        </div>
+        <div class="ziwei-selected-tags">
+          <span>四化：${escapeHtml(transforms)}</span>
+          <span>纳音：${escapeHtml(palace.nayin)}</span>
+          <span>标记：${escapeHtml(palace.markers.join("、") || "-")}</span>
+        </div>
+      </article>
+      <article>
+        <div class="panel-heading">
+          <h2>三方四正</h2>
+          <span>点击宫位会同步切换</span>
+        </div>
+        <div class="ziwei-selected-frame">
+          <div class="primary">
+            <strong>本宫 ${escapeHtml(palace.palace)} ${escapeHtml(palace.stem)}${escapeHtml(palace.branch)}</strong>
+            <span>${escapeHtml(ziweiStarsText(palace, { mainOnly: true }))}</span>
+          </div>
+          ${sanfang.map((item) => `
+            <div>
+              <strong>三方 ${escapeHtml(item.palace)} ${escapeHtml(item.stem)}${escapeHtml(item.branch)}</strong>
+              <span>${escapeHtml(ziweiStarsText(item, { mainOnly: true }))}</span>
+            </div>
+          `).join("")}
+          <div class="opposite">
+            <strong>对宫 ${escapeHtml(opposite?.palace || "-")} ${escapeHtml(opposite?.stem || "")}${escapeHtml(opposite?.branch || "")}</strong>
+            <span>${opposite ? escapeHtml(ziweiStarsText(opposite, { mainOnly: true })) : "-"}</span>
+          </div>
+        </div>
+      </article>
+    </section>
   `;
 }
 
@@ -1038,6 +1110,9 @@ function renderZiweiModule() {
   const wealth = ziweiPalaceByName(ziwei, "财帛");
   const career = ziweiPalaceByName(ziwei, "官禄");
   const travel = ziweiPalaceByName(ziwei, "迁移");
+  const activeZiweiBranch = ziwei.palaces[selectedZiweiBranch] ? selectedZiweiBranch : ziwei.mingBranch;
+  selectedZiweiBranch = activeZiweiBranch;
+  const activeZiweiPalace = ziwei.palaces[activeZiweiBranch];
   const activePalaces = palaces
     .filter((palace) => palace.stars.some((star) => ZIWEI_MAIN_STARS.includes(star.name)))
     .slice(0, 6);
@@ -1072,15 +1147,16 @@ function renderZiweiModule() {
     </section>
     <section class="ziwei-board-wrap">
       <div class="ziwei-board">
-        ${palaces.map(renderZiweiPalace).join("")}
+        ${palaces.map((palace) => renderZiweiPalace(palace, activeZiweiBranch)).join("")}
         <div class="ziwei-center">
           <span class="eyebrow">紫微斗数</span>
           <strong>${escapeHtml(chartSignature(currentChart))}</strong>
-          <p>${escapeHtml(ziwei.bureau.label)} · ${escapeHtml(ziwei.direction)}</p>
+          <p>当前：${escapeHtml(activeZiweiPalace.palace)} ${escapeHtml(activeZiweiPalace.stem)}${escapeHtml(activeZiweiPalace.branch)}</p>
           <div>${ziwei.transformItems.map((item) => `<span>${escapeHtml(item.star)}化${escapeHtml(item.name)}</span>`).join("")}</div>
         </div>
       </div>
     </section>
+    ${renderZiweiSelectedPalace(ziwei, activeZiweiBranch)}
     <section class="ziwei-reading-grid">
       <article>
         <div class="panel-heading">
@@ -1147,10 +1223,10 @@ function renderZiweiModule() {
           <span>建议</span>
         </div>
         <div class="ziwei-note-list">
-          <span>先看命宫与迁移，定内外环境。</span>
-          <span>再看财帛与官禄，定做事方式和资源入口。</span>
-          <span>四化看触发点，化忌所在要先做核验。</span>
-          <span>无主星宫位重点借对宫与三方四正。</span>
+          <span>点击任意宫位后，先看本宫主星与四化。</span>
+          <span>再看三方两宫，判断资源、事业、行动链条。</span>
+          <span>最后看对宫，作为外部环境或借星参照。</span>
+          <span>无主星宫位重点借对宫，再回三方四正补判断。</span>
         </div>
         <p>${escapeHtml(ziwei.note)}</p>
       </article>
@@ -1162,7 +1238,7 @@ function renderZiweiModule() {
           <span>对宫与三方</span>
         </div>
         <div class="ziwei-palace-list ziwei-palace-table">
-          ${renderZiweiPalaceTable(ziwei)}
+          ${renderZiweiPalaceTable(ziwei, activeZiweiBranch)}
         </div>
       </article>
     </section>
@@ -2686,6 +2762,13 @@ chartView.addEventListener("click", async (event) => {
 
   if (button.dataset.action === "go-cases") {
     setActiveModule("cases");
+    return;
+  }
+
+  if (button.dataset.action === "select-ziwei-palace") {
+    selectedZiweiBranch = button.dataset.branch || currentChart.pillars.year.branch;
+    renderZiweiModule();
+    chartView.querySelector(".ziwei-selected-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
 

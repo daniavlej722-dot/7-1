@@ -1541,10 +1541,33 @@ button:disabled {
   grid-template-rows: auto auto 1fr auto auto;
   gap: 5px;
   min-width: 0;
+  min-height: 132px;
   border: 1px solid rgba(23, 18, 16, 0.22);
   border-radius: 8px;
   padding: 9px;
   background: rgba(255, 253, 249, 0.9);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.ziwei-palace:hover {
+  transform: translateY(-1px);
+  border-color: rgba(23, 18, 16, 0.42);
+  box-shadow: 0 10px 24px rgba(74, 49, 25, 0.12);
+}
+
+.ziwei-palace.is-frame {
+  border-color: rgba(44, 155, 112, 0.44);
+  background: rgba(241, 255, 244, 0.9);
+}
+
+.ziwei-palace.is-selected {
+  border-color: rgba(23, 18, 16, 0.58);
+  background: rgba(216, 255, 69, 0.28);
+  box-shadow: 0 0 0 2px rgba(216, 255, 69, 0.42), 0 12px 28px rgba(74, 49, 25, 0.14);
 }
 
 .ziwei-palace-head,
@@ -1680,6 +1703,86 @@ button:disabled {
   gap: 10px;
 }
 
+.ziwei-selected-panel {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 10px;
+}
+
+.ziwei-selected-panel article {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(23, 18, 16, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 249, 0.86);
+}
+
+.ziwei-selected-main {
+  display: grid;
+  gap: 7px;
+  border-radius: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(216, 255, 69, 0.24), rgba(110, 231, 242, 0.12));
+}
+
+.ziwei-selected-main strong {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.ziwei-selected-main span,
+.ziwei-selected-main p,
+.ziwei-selected-tags span,
+.ziwei-selected-frame span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ziwei-selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ziwei-selected-tags span {
+  border: 1px solid rgba(23, 18, 16, 0.12);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(255, 253, 249, 0.86);
+  font-weight: 800;
+}
+
+.ziwei-selected-frame {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ziwei-selected-frame div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(115, 92, 71, 0.13);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 253, 249, 0.88);
+}
+
+.ziwei-selected-frame .primary {
+  border-color: rgba(23, 18, 16, 0.34);
+  background: rgba(216, 255, 69, 0.2);
+}
+
+.ziwei-selected-frame .opposite {
+  border-color: rgba(44, 155, 112, 0.28);
+  background: rgba(241, 255, 244, 0.9);
+}
+
+.ziwei-selected-frame strong {
+  font-size: 14px;
+}
+
 .ziwei-reading-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
@@ -1787,7 +1890,8 @@ button:disabled {
   gap: 7px;
 }
 
-.ziwei-palace-list div {
+.ziwei-palace-list div,
+.ziwei-palace-table button {
   display: grid;
   grid-template-columns: minmax(110px, 0.45fr) 1fr;
   gap: 8px;
@@ -1814,10 +1918,32 @@ button:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.ziwei-palace-table div {
+.ziwei-palace-table button {
   border: 1px solid rgba(115, 92, 71, 0.12);
   border-radius: 8px;
   padding: 9px;
+  background: rgba(255, 253, 249, 0.78);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ziwei-palace-table button:hover,
+.ziwei-palace-table button.is-related {
+  border-color: rgba(44, 155, 112, 0.34);
+  background: rgba(241, 255, 244, 0.88);
+}
+
+.ziwei-palace-table button em {
+  justify-self: start;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(216, 255, 69, 0.28);
+  color: var(--ink);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .workflow-steps {
@@ -2156,8 +2282,10 @@ blockquote {
   .ziwei-dashboard,
   .ziwei-actions,
   .ziwei-detail-grid,
+  .ziwei-selected-panel,
   .ziwei-reading-grid,
   .ziwei-focus-palaces,
+  .ziwei-selected-frame,
   .ziwei-palace-table,
   .workflow-steps,
   .module-grid {
@@ -2276,6 +2404,7 @@ blockquote {
   .service-queue,
   .ziwei-dashboard article,
   .ziwei-detail-grid article,
+  .ziwei-selected-panel article,
   .ziwei-reading-grid article,
   .ziwei-wide-detail article,
   .knowledge-grid article,
