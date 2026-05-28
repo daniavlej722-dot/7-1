@@ -29,7 +29,7 @@ const TEN_GOD_GROUPS = {
   印星: ["正印", "偏印"],
 };
 const ZIWEI_BRANCHES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
-const ZIWEI_PALACE_NAMES = ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "交友", "官禄", "田宅", "福德", "父母"];
+const ZIWEI_PALACE_NAMES = ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "仆役", "官禄", "田宅", "福德", "父母"];
 const ZIWEI_MAIN_STARS = ["紫微", "天机", "太阳", "武曲", "天同", "廉贞", "天府", "太阴", "贪狼", "巨门", "天相", "天梁", "七杀", "破军"];
 const ZIWEI_NAYIN = [
   "海中金", "海中金", "炉中火", "炉中火", "大林木", "大林木", "路旁土", "路旁土", "剑锋金", "剑锋金",
@@ -607,9 +607,17 @@ function ziweiBranchIndex(branch) {
   return ZIWEI_BRANCHES.indexOf(branch);
 }
 
-function hourBranchFromTime(time = "00:00") {
+function ziweiTimeIndexFromTime(time = "00:00") {
   const [hour] = String(time || "00:00").split(":").map(Number);
-  return ZIWEI_BRANCHES[Math.floor(((Number(hour) || 0) + 1) / 2) % 12];
+  const normalizedHour = Number.isFinite(hour) ? hour : 0;
+  if (normalizedHour === 23) return 12;
+  if (normalizedHour === 0) return 0;
+  return Math.floor((normalizedHour + 1) / 2);
+}
+
+function hourBranchFromTime(time = "00:00") {
+  const timeIndex = ziweiTimeIndexFromTime(time);
+  return ZIWEI_BRANCHES[timeIndex === 12 ? 0 : timeIndex];
 }
 
 function ganzhiIndex(stem, branch) {
@@ -628,25 +636,60 @@ function ziweiNayin(stem, branch) {
   return index >= 0 ? ZIWEI_NAYIN[index] : "";
 }
 
-function ziweiBureauFromNayin(nayin = "") {
-  const element = elementFromNayin(nayin);
-  const numbers = { 水: 2, 木: 3, 金: 4, 土: 5, 火: 6 };
+function ziweiYearGanzhi(lunarYear) {
+  const stems = baziMeta.STEMS.map((item) => item.char);
+  const index = ziweiMod(Number(lunarYear) - 1984, 60);
   return {
-    element,
-    number: numbers[element] || 2,
-    label: element ? `${element}${numbers[element]}局` : "水二局",
+    stem: stems[index % 10],
+    branch: ZIWEI_BRANCHES[index % 12],
   };
+}
+
+function ziweiBureauFromPalace(stem, branch) {
+  const stems = baziMeta.STEMS.map((item) => item.char);
+  const stemIndex = stems.indexOf(stem);
+  const branchIndex = ziweiBranchIndex(branch);
+  if (stemIndex < 0 || branchIndex < 0) return { element: "水", number: 2, label: "水二局" };
+  const stemNumber = Math.floor(stemIndex / 2) + 1;
+  const branchNumber = Math.floor(ziweiMod(branchIndex, 6) / 2) + 1;
+  let bureauCode = stemNumber + branchNumber;
+  while (bureauCode > 5) bureauCode -= 5;
+  const bureauMap = {
+    1: { element: "木", number: 3, label: "木三局" },
+    2: { element: "金", number: 4, label: "金四局" },
+    3: { element: "水", number: 2, label: "水二局" },
+    4: { element: "火", number: 6, label: "火六局" },
+    5: { element: "土", number: 5, label: "土五局" },
+  };
+  return bureauMap[bureauCode] || bureauMap[3];
+}
+
+function lunarMonthDays(year, month, isLeap) {
+  for (let day = 30; day >= 29; day -= 1) {
+    try {
+      lunarToSolarDate({ year, month, day, isLeap });
+      return day;
+    } catch {
+      // Some lunar months only have 29 days.
+    }
+  }
+  return 30;
 }
 
 function ziweiLunarBirth(payload) {
   if (payload.dateMode === "lunar") {
+    const year = Number(payload.lunarYear);
+    const month = Number(payload.lunarMonth);
+    const day = Number(payload.lunarDay);
+    const isLeap = Boolean(payload.lunarLeap);
     return {
-      year: payload.lunarYear,
-      month: payload.lunarMonth,
-      day: payload.lunarDay,
-      isLeap: payload.lunarLeap,
+      year,
+      month,
+      day,
+      isLeap,
       time: payload.lunarTime || payload.birthDatetime?.slice(11, 16) || "00:00",
-      text: `${payload.lunarYear}年${payload.lunarLeap ? "闰" : ""}${payload.lunarMonth}月${payload.lunarDay}`,
+      text: `${year}年${isLeap ? "闰" : ""}${month}月${day}`,
+      maxDays: lunarMonthDays(year, month, isLeap),
     };
   }
   const { year, month, day, hour, minute } = parseDateTime(payload.birthDatetime);
@@ -654,6 +697,7 @@ function ziweiLunarBirth(payload) {
   return {
     ...lunar,
     time: `${pad2(hour)}:${pad2(minute || 0)}`,
+    maxDays: lunarMonthDays(lunar.year, lunar.month, lunar.isLeap),
   };
 }
 
@@ -680,26 +724,39 @@ function addZiweiStarsByOffsets(palaces, startIndex, stars, direction = 1) {
   });
 }
 
-function estimateZiweiIndex(lunarDay, bureauNumber) {
-  const base = ziweiBranchIndex("寅");
-  const quotient = Math.ceil(lunarDay / bureauNumber) - 1;
-  const remainder = lunarDay % bureauNumber;
-  const adjust = remainder === 0 ? 0 : bureauNumber - remainder;
-  const signedAdjust = adjust % 2 === 0 ? -adjust : adjust;
-  return ziweiMod(base + quotient + signedAdjust);
+function estimateZiweiPalaceIndex(lunarDay, bureauNumber, timeIndex, maxDays = 30) {
+  let day = Number(lunarDay || 1);
+  if (timeIndex === 12) day += 1;
+  if (day > maxDays) day -= maxDays;
+
+  let offset = -1;
+  let quotient = 0;
+  let remainder = -1;
+  do {
+    offset += 1;
+    const divisor = day + offset;
+    quotient = Math.floor(divisor / bureauNumber);
+    remainder = divisor % bureauNumber;
+  } while (remainder !== 0);
+
+  quotient %= 12;
+  let palaceIndex = quotient - 1;
+  palaceIndex += offset % 2 === 0 ? offset : -offset;
+  return ziweiMod(palaceIndex);
 }
 
 function buildZiweiChart(chart, payload) {
   const lunar = ziweiLunarBirth(payload);
+  const timeIndex = ziweiTimeIndexFromTime(lunar.time);
   const hourBranch = hourBranchFromTime(lunar.time);
-  const yearStem = chart.pillars.year.stem;
-  const yearBranch = chart.pillars.year.branch;
+  const lunarYearGanzhi = ziweiYearGanzhi(lunar.year);
+  const yearStem = lunarYearGanzhi.stem;
+  const yearBranch = lunarYearGanzhi.branch;
   const yearPolarity = baziMeta.STEMS.find((item) => item.char === yearStem)?.polarity || "阳";
   const gender = chart.input.gender;
   const monthStart = ziweiMod(ziweiBranchIndex("寅") + Number(lunar.month || 1) - 1);
-  const hourIndex = ziweiBranchIndex(hourBranch);
-  const mingIndex = ziweiMod(monthStart - hourIndex);
-  const shenIndex = ziweiMod(monthStart + hourIndex);
+  const mingIndex = ziweiMod(monthStart - timeIndex);
+  const shenIndex = ziweiMod(monthStart + timeIndex);
   const mingBranch = ZIWEI_BRANCHES[mingIndex];
   const shenBranch = ZIWEI_BRANCHES[shenIndex];
   const palaces = Object.fromEntries(ZIWEI_BRANCHES.map((branch) => {
@@ -724,17 +781,19 @@ function buildZiweiChart(chart, payload) {
   palaces[mingBranch].markers.push("命");
   palaces[shenBranch].markers.push("身");
 
-  const bureau = ziweiBureauFromNayin(palaces[mingBranch].nayin);
-  const ziweiIndex = estimateZiweiIndex(Number(lunar.day || 1), bureau.number);
-  const tianfuIndex = ziweiMod(4 - ziweiIndex);
+  const bureau = ziweiBureauFromPalace(palaces[mingBranch].stem, mingBranch);
+  const ziweiPalaceIndex = estimateZiweiPalaceIndex(Number(lunar.day || 1), bureau.number, timeIndex, lunar.maxDays || 30);
+  const tianfuPalaceIndex = ziweiMod(12 - ziweiPalaceIndex);
+  const ziweiIndex = ziweiMod(ziweiBranchIndex("寅") + ziweiPalaceIndex);
+  const tianfuIndex = ziweiMod(ziweiBranchIndex("寅") + tianfuPalaceIndex);
   addZiweiStarsByOffsets(palaces, ziweiIndex, [[0, "紫微"], [1, "天机"], [3, "太阳"], [4, "武曲"], [5, "天同"], [8, "廉贞"]], -1);
   addZiweiStarsByOffsets(palaces, tianfuIndex, [[0, "天府"], [1, "太阴"], [2, "贪狼"], [3, "巨门"], [4, "天相"], [5, "天梁"], [6, "七杀"], [10, "破军"]], 1);
 
   const month = Number(lunar.month || 1);
   addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("辰") + month - 1)], "左辅");
   addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("戌") - month + 1)], "右弼");
-  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("戌") - hourIndex)], "文昌");
-  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("辰") + hourIndex)], "文曲");
+  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("戌") - timeIndex)], "文昌");
+  addZiweiStar(palaces, ZIWEI_BRANCHES[ziweiMod(ziweiBranchIndex("辰") + timeIndex)], "文曲");
 
   const lucunBranch = ZIWEI_LUCUN[yearStem];
   if (lucunBranch) {
